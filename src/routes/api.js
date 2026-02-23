@@ -125,4 +125,21 @@ router.patch("/viewings/:id", (req, res) => {
   res.json(viewing);
 });
 
+/**
+ * GET /api/conversations — List all conversations (summary)
+ */
+router.get("/conversations", (req, res) => {
+  const sessions = getAllSessions();
+  const convos = sessions.map((s) => ({
+    userId: s.userId,
+    state: s.state,
+    messageCount: s.history.length,
+    leadScore: s.leadScore,
+    leadTier: getLeadTier(s.leadScore),
+    lastMessage: s.history.length > 0 ? s.history[s.history.length - 1].content?.substring(0, 80) : null,
+    lastActivity: s.lastActivity,
+  }));
+  res.json({ count: convos.length, conversations: convos });
+});
+
 export default router;

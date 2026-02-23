@@ -1,8 +1,13 @@
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import rateLimit from "express-rate-limit";
 import config from "./src/config/index.js";
 import webhookRoutes from "./src/routes/webhook.js";
 import apiRoutes from "./src/routes/api.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -11,6 +16,9 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "1mb" }));
+
+// Serve static files (dashboard)
+app.use("/static", express.static(path.join(__dirname, "public")));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -38,6 +46,11 @@ app.use((req, res, next) => {
 app.use(webhookRoutes);
 app.use("/api", apiRoutes);
 
+// Dashboard
+app.get("/dashboard", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "dashboard.html"));
+});
+
 // Root
 app.get("/", (req, res) => {
   res.json({
@@ -46,6 +59,7 @@ app.get("/", (req, res) => {
     version: "1.0.0",
     endpoints: {
       webhook: "/webhook",
+      dashboard: "/dashboard",
       health: "/api/health",
       stats: "/api/stats",
       leads: "/api/leads",
@@ -64,7 +78,8 @@ app.use((err, req, res, next) => {
 app.listen(config.port, () => {
   console.log(`\n🤖 Devtraco WhatsApp AI Chatbot`);
   console.log(`   Server running on port ${config.port}`);
-  console.log(`   Webhook: http://localhost:${config.port}/webhook`);
-  console.log(`   API:     http://localhost:${config.port}/api/health`);
-  console.log(`   Model:   ${config.openai.model}\n`);
+  console.log(`   Webhook:    http://localhost:${config.port}/webhook`);
+  console.log(`   Dashboard:  http://localhost:${config.port}/dashboard`);
+  console.log(`   API:        http://localhost:${config.port}/api/health`);
+  console.log(`   Model:      ${config.openai.model}\n`);
 });
