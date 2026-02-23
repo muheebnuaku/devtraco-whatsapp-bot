@@ -7,6 +7,7 @@ import {
 import { formatLeadReport, getLeadTier } from "../services/leadCapture.js";
 import { getAllProperties } from "../data/properties.js";
 import { getAllViewings, getPendingViewingCount, updateViewingStatus } from "../services/viewingScheduler.js";
+import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
 
 const router = express.Router();
 
@@ -140,6 +141,37 @@ router.get("/conversations", (req, res) => {
     lastActivity: s.lastActivity,
   }));
   res.json({ count: convos.length, conversations: convos });
+});
+
+/**
+ * GET /api/crm/stats — CRM sync status & stats
+ */
+router.get("/crm/stats", (req, res) => {
+  res.json(getCRMSyncStats());
+});
+
+/**
+ * GET /api/crm/log — Full CRM sync audit log
+ */
+router.get("/crm/log", (req, res) => {
+  res.json({ log: getCRMSyncLog() });
+});
+
+/**
+ * POST /api/crm/sync/:userId — Manually trigger CRM sync for a lead
+ */
+router.post("/crm/sync/:userId", async (req, res) => {
+  const session = getSession(req.params.userId);
+  if (!session || session.leadScore === 0) {
+    return res.status(404).json({ error: "Lead not found" });
+  }
+  try {
+    const report = formatLeadReport(session);
+    const result = await syncLeadToCRM(report);
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 export default router;

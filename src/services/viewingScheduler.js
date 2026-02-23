@@ -1,4 +1,5 @@
 import config from "../config/index.js";
+import { syncViewingToCRM } from "./crmSync.js";
 
 /**
  * In-memory viewing appointment store.
@@ -30,6 +31,10 @@ export function createViewing({ userId, propertyId, propertyName, preferredDate,
 
   viewings.set(id, viewing);
   console.log(`[Viewing] Created ${id} for ${userId} — ${propertyName}`);
+  // Sync to Dynamics 365 CRM (async, non-blocking)
+  syncViewingToCRM(viewing).catch((err) =>
+    console.error(`[CRM] Viewing sync failed for ${id}:`, err.message)
+  );
   return viewing;
 }
 

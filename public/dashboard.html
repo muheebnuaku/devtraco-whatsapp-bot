@@ -323,6 +323,7 @@
     <button class="tab" onclick="switchTab('conversations')">💬 Conversations</button>
     <button class="tab" onclick="switchTab('viewings')">📅 Viewings</button>
     <button class="tab" onclick="switchTab('properties')">🏠 Properties</button>
+    <button class="tab" onclick="switchTab('crm')">🔗 CRM Sync</button>
   </div>
 
   <!-- ============ OVERVIEW TAB ============ -->
@@ -483,6 +484,45 @@
       </div>
     </div>
   </div>
+
+  <!-- ============ CRM SYNC TAB ============ -->
+  <div id="tab-crm" class="tab-content">
+    <div class="stats-grid" id="crmStatsGrid">
+      <div class="loading"><div class="spinner"></div><br>Loading CRM status...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">CRM Sync Configuration</h3>
+      </div>
+      <div id="crmConfig" style="padding:8px;">
+        <p style="color:#64748b;">Loading...</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Sync Audit Log</h3>
+        <button class="btn btn-primary btn-sm" onclick="refreshCRM()">🔄 Refresh</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Entity</th>
+              <th>Status</th>
+              <th>Message</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="crmLogTable">
+            <tr><td colspan="5" class="loading"><div class="spinner"></div><br>Loading sync log...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -509,6 +549,7 @@
     if (name === 'conversations') refreshConvoList();
     if (name === 'viewings') refreshViewings();
     if (name === 'properties') refreshProperties();
+    if (name === 'crm') refreshCRM();
   }
 
   // ========== REFRESH ALL ==========
@@ -828,6 +869,93 @@
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML.replace(/\n/g, '<br>');
+  }
+
+  // ========== CRM SYNC ==========
+  async function refreshCRM() {
+    try {
+      const data = await fetch(`${API}/crm/stats`).then(r => r.json());
+      renderCRMStats(data);
+      renderCRMConfig(data);
+      renderCRMLog(data.recentLog || []);
+    } catch (err) {
+      console.error('Failed to load CRM data:', err);
+    }
+  }
+
+  function renderCRMStats(stats) {
+    const grid = document.getElementById('crmStatsGrid');
+    grid.innerHTML = `
+      <div class="stat-card ${stats.enabled ? 'green' : 'red'}">
+        <div class="stat-label">CRM Status</div>
+        <div class="stat-value">${stats.enabled ? 'Connected' : 'Not Configured'}</div>
+        <div class="stat-sub">${stats.orgUrl || 'Set DYNAMICS_* env vars to enable'}</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Successful Syncs</div>
+        <div class="stat-value">${stats.totalSyncs}</div>
+        <div class="stat-sub">Contacts, leads, appointments</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">Sync Errors</div>
+        <div class="stat-value">${stats.totalErrors}</div>
+        <div class="stat-sub">${stats.queueSize} in retry queue</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">Last Sync</div>
+        <div class="stat-value" style="font-size:16px;">${stats.lastSync ? new Date(stats.lastSync).toLocaleString() : 'Never'}</div>
+        <div class="stat-sub">Most recent sync event</div>
+      </div>
+    `;
+  }
+
+  function renderCRMConfig(stats) {
+    const el = document.getElementById('crmConfig');
+    if (stats.enabled) {
+      el.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div><strong>Organization URL:</strong><br><span style="color:#25D366;">${stats.orgUrl}</span></div>
+          <div><strong>Status:</strong><br><span style="color:#25D366;">✅ Connected & Syncing</span></div>
+        </div>
+        <p style="margin-top:16px;color:#64748b;font-size:13px;">Leads scoring WARM (50+) or above are automatically synced to Dynamics 365 as Contacts + Leads.<br>Viewing appointments are synced as Appointments. Failed syncs are retried up to 3 times.</p>
+      `;
+    } else {
+      el.innerHTML = `
+        <div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; padding:16px;">
+          <strong>⚠️ CRM Integration Not Configured</strong>
+          <p style="margin-top:8px; color:#92400e;">To connect Microsoft Dynamics 365, set these environment variables on Render:</p>
+          <ul style="margin-top:8px; color:#92400e; list-style:disc; padding-left:20px;">
+            <li><code>DYNAMICS_ORG_URL</code> — e.g. https://devtraco.crm.dynamics.com</li>
+            <li><code>DYNAMICS_TENANT_ID</code> — Your Azure AD tenant ID</li>
+            <li><code>DYNAMICS_CLIENT_ID</code> — App registration client ID</li>
+            <li><code>DYNAMICS_CLIENT_SECRET</code> — App registration secret</li>
+          </ul>
+          <p style="margin-top:12px; color:#92400e;">Once set, the bot will auto-sync WARM/HOT leads and viewings to Dynamics 365.</p>
+        </div>
+      `;
+    }
+  }
+
+  function renderCRMLog(log) {
+    const tbody = document.getElementById('crmLogTable');
+    if (log.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:40px;">No sync events yet. Events will appear here once leads are captured.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = log.map(entry => {
+      const statusClass = entry.status === 'ERROR' ? 'tier-HOT' :
+                          entry.status === 'CREATED' || entry.status === 'SUCCESS' ? 'tier-COLD' :
+                          'tier-WARM';
+      return `
+        <tr>
+          <td style="white-space:nowrap;">${new Date(entry.timestamp).toLocaleString()}</td>
+          <td><strong>${entry.entity}</strong></td>
+          <td><span class="tier-badge ${statusClass}">${entry.status}</span></td>
+          <td>${entry.message}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${JSON.stringify(entry.details)}</td>
+        </tr>
+      `;
+    }).join('');
   }
 </script>
 

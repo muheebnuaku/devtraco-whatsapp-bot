@@ -1,5 +1,6 @@
 import config from "../config/index.js";
 import { getSession, updateLeadData } from "./session.js";
+import { syncLeadToCRM } from "./crmSync.js";
 
 /**
  * Captures lead data extracted by the AI and scores the lead.
@@ -23,11 +24,21 @@ export function captureLead(userId, leadData) {
     JSON.stringify(session.leadData)
   );
 
-  return {
+  const result = {
     leadData: session.leadData,
     score: session.leadScore,
     tier: getLeadTier(session.leadScore),
   };
+
+  // Sync to Dynamics 365 CRM (async, non-blocking)
+  if (session.leadScore >= config.leadScoring.warm) {
+    const report = formatLeadReport(session);
+    syncLeadToCRM(report).catch((err) =>
+      console.error(`[CRM] Background sync failed for ${userId}:`, err.message)
+    );
+  }
+
+  return result;
 }
 
 /**

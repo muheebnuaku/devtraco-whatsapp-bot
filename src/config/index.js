@@ -42,6 +42,15 @@ const config = {
     cold: 0,
   },
 
+  // Microsoft Dynamics 365 CRM
+  dynamics: {
+    enabled: !!(process.env.DYNAMICS_ORG_URL && process.env.DYNAMICS_CLIENT_ID),
+    orgUrl: process.env.DYNAMICS_ORG_URL || "",
+    tenantId: process.env.DYNAMICS_TENANT_ID || "",
+    clientId: process.env.DYNAMICS_CLIENT_ID || "",
+    clientSecret: process.env.DYNAMICS_CLIENT_SECRET || "",
+  },
+
   // Company info for the AI system prompt
   company: {
     name: "Devtraco Plus",
