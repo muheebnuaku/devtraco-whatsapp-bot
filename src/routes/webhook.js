@@ -40,7 +40,11 @@ router.post("/webhook", async (req, res) => {
         // Process messages
         const messages = value?.messages || [];
         for (const message of messages) {
-          console.log(`[Message] From: ${message.from} | Type: ${message.type}`);
+          const msgContent = message.text?.body
+            || message.interactive?.button_reply?.title
+            || message.interactive?.list_reply?.title
+            || `[${message.type}]`;
+          console.log(`[Message] From: ${message.from} | Type: ${message.type} | Content: ${msgContent}`);
           // Fire and forget — don't block the webhook response
           handleIncomingMessage(message).catch((err) => {
             console.error(`[Message] Handler error for ${message.from}:`, err.message);

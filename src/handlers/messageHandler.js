@@ -145,6 +145,10 @@ export async function handleIncomingMessage(messagePayload) {
     captureLead(from, aiResult.leadData);
   }
 
+  // Log the conversation
+  console.log(`[Chat] ${from} → ${userText}`);
+  console.log(`[Chat] Bot → ${aiResult.text.slice(0, 150)}...`);
+
   // Send the response
   await sendTextMessage(from, aiResult.text);
 
@@ -308,27 +312,43 @@ async function sendMainMenu(to) {
 }
 
 /**
- * Send the property listing
+ * Send the property listing (WhatsApp allows max 10 rows per list)
  */
 async function sendPropertyList(to) {
   const properties = getAllProperties();
-  const sections = [
-    {
-      title: "Available Properties",
-      rows: properties.map((p) => ({
+
+  // Split into sections of max 10 total rows
+  const apartments = properties.filter(p => p.type === "Apartments" || p.type === "Hotel Apartments");
+  const houses = properties.filter(p => p.type === "Townhouses" || p.type === "Townhomes");
+
+  const sections = [];
+  if (apartments.length > 0) {
+    sections.push({
+      title: "Apartments",
+      rows: apartments.slice(0, 7).map((p) => ({
         id: `property_${p.id}`,
         title: p.name,
         description: `${p.location} — From $${p.priceFrom.toLocaleString()}`,
       })),
-    },
-  ];
+    });
+  }
+  if (houses.length > 0) {
+    sections.push({
+      title: "Townhouses & Townhomes",
+      rows: houses.slice(0, 3).map((p) => ({
+        id: `property_${p.id}`,
+        title: p.name,
+        description: `${p.location} — From $${p.priceFrom.toLocaleString()}`,
+      })),
+    });
+  }
 
   await sendListMessage(
     to,
     "Here are our available properties. Tap below to explore! 🏡",
     "Browse Properties",
     sections,
-    "Devtraco Properties"
+    "Devtraco Plus Properties"
   );
 }
 
