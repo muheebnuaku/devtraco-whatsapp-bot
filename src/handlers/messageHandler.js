@@ -271,16 +271,36 @@ async function detectPropertyInText(text) {
  * These are incorrect — the system CAN send images via the SHOW_PROPERTY mechanism.
  */
 function cleanImageRefusals(text) {
-  // Remove sentences where AI says it cannot show/display images or videos
-  const patterns = [
-    /[^.!?\n]*(?:can'?t|cannot|unable to|don'?t have the ability to)\s+(?:show|display|send|share)\s+(?:images|videos?|photos?|pictures?|visuals?)[^.!?\n]*[.!?]?\s*/gi,
-    /[^.!?\n]*(?:can'?t|cannot|unable to|don'?t have the ability to)\s+(?:show|display|send|share)\s+(?:images|videos?|photos?|pictures?|visuals?)\s+(?:directly|here|in this chat)[^.!?\n]*[.!?]?\s*/gi,
-  ];
+  // Remove sentences where AI says it cannot show/display/share images or videos.
+  // Use can.?t to handle smart quotes (Unicode U+2019 right single quote vs ASCII)
+  // Also remove "visit the website/link to see/watch" redirect sentences.
+  //
+  // Strategy: first strip entire lines that contain refusal + redirect combos,
+  // then strip remaining individual refusal sentences.
   let cleaned = text;
-  for (const pat of patterns) {
-    cleaned = cleaned.replace(pat, "");
-  }
-  return cleaned.trim() || text; // fallback to original if everything got stripped
+
+  // Strip full lines/paragraphs that contain a refusal about images/videos
+  // (handles multi-clause sentences with URLs containing dots)
+  cleaned = cleaned.replace(
+    /^.*?(?:can.?t|cannot|unable to|don.?t have the ability to)\s+(?:show|display|send|share)\s+(?:images|videos?|photos?|pictures?|visuals?).*$/gim,
+    ""
+  );
+
+  // Strip "visit/follow this link ... to watch/see" redirect sentences
+  cleaned = cleaned.replace(
+    /^.*?(?:visit|follow|check out)\s+(?:this\s+)?link.*?(?:watch|see|view).*$/gim,
+    ""
+  );
+
+  // Strip "you can find videos/images on our website" redirect sentences
+  cleaned = cleaned.replace(
+    /^.*?(?:you can find|check out)\s+(?:videos?|images?|photos?|visuals?|more visual content).*?(?:website|link).*$/gim,
+    ""
+  );
+
+  // Clean up leftover blank lines
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n").trim();
+  return cleaned || text; // fallback to original if everything got stripped
 }
 
 /**
