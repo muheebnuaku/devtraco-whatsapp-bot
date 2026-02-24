@@ -14,7 +14,8 @@ import {
   updateProperty,
   deleteProperty,
 } from "../data/properties.js";
-import { getAllViewings, getPendingViewingCount, updateViewingStatus } from "../services/viewingScheduler.js";
+import { getAllViewings, getPendingViewingCount, updateViewingStatus, formatViewingConfirmed, formatViewingCancelled } from "../services/viewingScheduler.js";
+import { sendTextMessage } from "../services/whatsapp.js";
 import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
 import Image from "../db/models/Image.js";
 import Video from "../db/models/Video.js";
@@ -237,6 +238,23 @@ router.patch("/viewings/:id", async (req, res) => {
   if (!viewing) {
     return res.status(404).json({ error: "Viewing not found" });
   }
+
+  // Send WhatsApp notification to the customer
+  try {
+    const phone = viewing.phone || viewing.userId;
+    if (phone) {
+      if (status === "CONFIRMED") {
+        await sendTextMessage(phone, formatViewingConfirmed(viewing));
+        console.log(`[Viewing] Sent confirmation to ${phone} for ${viewing.viewingId}`);
+      } else if (status === "CANCELLED") {
+        await sendTextMessage(phone, formatViewingCancelled(viewing));
+        console.log(`[Viewing] Sent cancellation to ${phone} for ${viewing.viewingId}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[Viewing] Failed to notify user:`, err.message);
+  }
+
   res.json(viewing);
 });
 

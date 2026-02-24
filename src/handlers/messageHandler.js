@@ -10,7 +10,7 @@ import {
   markAsRead,
 } from "../services/whatsapp.js";
 import { getAllProperties, getPropertyById, formatPropertyCard } from "../data/properties.js";
-import { createViewing, formatViewingConfirmation, getUserViewings } from "../services/viewingScheduler.js";
+import { createViewing, formatViewingPending, getUserViewings } from "../services/viewingScheduler.js";
 import config from "../config/index.js";
 
 // Base URL for serving uploaded images (needed for WhatsApp absolute URLs)
@@ -165,8 +165,11 @@ export async function handleIncomingMessage(messagePayload) {
   console.log(`[Chat] ${from} → ${userText}`);
   console.log(`[Chat] Bot → ${aiResult.text.slice(0, 150)}...`);
 
-  // If AI referenced a specific property, send its image first
-  if (aiResult.showProperty) {
+  // If AI referenced a specific property, send its images/videos first
+  // BUT skip media when the AI is scheduling a viewing (user already knows the property)
+  const skipMedia = !!aiResult.scheduleViewing;
+
+  if (aiResult.showProperty && !skipMedia) {
     await sendPropertyImages(from, aiResult.showProperty);
   }
 
@@ -174,7 +177,8 @@ export async function handleIncomingMessage(messagePayload) {
   await sendTextMessage(from, aiResult.text);
 
   // If AI referenced a specific property, send action buttons after the text
-  if (aiResult.showProperty) {
+  // (skip when scheduling — the flow is already complete)
+  if (aiResult.showProperty && !skipMedia) {
     const prop = await getPropertyById(aiResult.showProperty);
     if (prop) {
       await sendButtonMessage(
@@ -393,9 +397,9 @@ async function handleViewingSchedule(to, scheduleData) {
     notes: scheduleData.notes || "",
   });
 
-  // Send confirmation
+  // Send pending acknowledgment (NOT confirmed — admin must confirm from dashboard)
   setTimeout(async () => {
-    await sendTextMessage(to, formatViewingConfirmation(viewing));
+    await sendTextMessage(to, formatViewingPending(viewing));
   }, 1500);
 }
 

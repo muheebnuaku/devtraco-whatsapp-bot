@@ -134,20 +134,49 @@ export async function getPendingViewingCount() {
 /**
  * Format viewing confirmation message for WhatsApp
  */
-export function formatViewingConfirmation(viewing) {
+export function formatViewingPending(viewing) {
   return [
-    `📅 *Viewing Request Confirmed!*`,
+    `📅 *Viewing Request Received!*`,
+    ``,
+    `📋 Reference: *${viewing.viewingId || viewing.id}*`,
+    `🏠 Property: *${viewing.propertyName}*`,
+    `📆 Preferred Date: ${viewing.preferredDate}`,
+    `🕐 Preferred Time: ${viewing.preferredTime}`,
+    `👤 Name: ${viewing.name}`,
+    ``,
+    `Your request is being reviewed by our team. You will receive a confirmation message once it is approved.`,
+    ``,
+    `📍 *Office:* ${config.company.address}`,
+    `📞 *Contact:* ${config.company.cellPhone}`,
+  ].join("\n");
+}
+
+export function formatViewingConfirmed(viewing) {
+  return [
+    `✅ *Viewing Confirmed!*`,
     ``,
     `📋 Reference: *${viewing.viewingId || viewing.id}*`,
     `🏠 Property: *${viewing.propertyName}*`,
     `📆 Date: ${viewing.preferredDate}`,
     `🕐 Time: ${viewing.preferredTime}`,
     `👤 Name: ${viewing.name}`,
-    `📞 Phone: ${viewing.phone}`,
     ``,
-    `Our team will confirm the exact time and send you directions shortly.`,
+    `Your viewing has been confirmed by our team! We look forward to seeing you.`,
     ``,
     `📍 *Office:* ${config.company.address}`,
+    `📞 *Contact:* ${config.company.cellPhone}`,
+  ].join("\n");
+}
+
+export function formatViewingCancelled(viewing) {
+  return [
+    `❌ *Viewing Cancelled*`,
+    ``,
+    `📋 Reference: *${viewing.viewingId || viewing.id}*`,
+    `🏠 Property: *${viewing.propertyName}*`,
+    ``,
+    `Unfortunately, your viewing has been cancelled. If you'd like to reschedule, please let us know!`,
+    ``,
     `📞 *Contact:* ${config.company.cellPhone}`,
   ].join("\n");
 }
