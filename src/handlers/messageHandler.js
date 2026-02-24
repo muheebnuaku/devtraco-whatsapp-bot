@@ -394,43 +394,44 @@ async function sendPropertyImages(to, propertyId) {
   const property = await getPropertyById(propertyId);
   if (!property) return;
 
-  // Send all images (not just the first one)
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Build all media tasks and send in parallel with a small stagger
+  const tasks = [];
+
   if (property.images && property.images.length > 0) {
-    for (let i = 0; i < property.images.length; i++) {
-      try {
-        let imageUrl = property.images[i];
-        if (imageUrl.startsWith("/")) {
-          imageUrl = `${BASE_URL}${imageUrl}`;
-        }
+    property.images.forEach((img, i) => {
+      tasks.push(async () => {
+        await sleep(i * 300); // small stagger to preserve order
+        let imageUrl = img.startsWith("/") ? `${BASE_URL}${img}` : img;
         const caption = i === 0
           ? `${property.name} — ${property.location} (${i + 1}/${property.images.length})`
           : `${property.name} (${i + 1}/${property.images.length})`;
         console.log(`[Property] Sending image ${i + 1}/${property.images.length} for ${propertyId}`);
         await sendImageMessage(to, imageUrl, caption);
-      } catch (err) {
-        console.warn(`[Property] Failed to send image ${i + 1} for ${propertyId}:`, err.message);
-      }
-    }
+      });
+    });
   } else {
     console.log(`[Property] No images available for ${propertyId}`);
   }
 
-  // Send all videos
   if (property.videos && property.videos.length > 0) {
-    for (let i = 0; i < property.videos.length; i++) {
-      try {
-        let videoUrl = property.videos[i];
-        if (videoUrl.startsWith("/")) {
-          videoUrl = `${BASE_URL}${videoUrl}`;
-        }
+    const imgCount = property.images ? property.images.length : 0;
+    property.videos.forEach((vid, i) => {
+      tasks.push(async () => {
+        await sleep((imgCount + i) * 300);
+        let videoUrl = vid.startsWith("/") ? `${BASE_URL}${vid}` : vid;
         const caption = `${property.name} — Video ${i + 1}/${property.videos.length}`;
         console.log(`[Property] Sending video ${i + 1}/${property.videos.length} for ${propertyId}`);
         await sendVideoMessage(to, videoUrl, caption);
-      } catch (err) {
-        console.warn(`[Property] Failed to send video ${i + 1} for ${propertyId}:`, err.message);
-      }
-    }
+      });
+    });
   }
+
+  // Fire all in parallel — stagger keeps them roughly ordered
+  await Promise.all(tasks.map((fn) => fn().catch((err) => {
+    console.warn(`[Property] Media send failed for ${propertyId}:`, err.message);
+  })));
 }
 
 /**

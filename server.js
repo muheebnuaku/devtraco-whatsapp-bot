@@ -92,6 +92,20 @@ async function start() {
     console.log(`   Dashboard:  http://localhost:${config.port}/dashboard`);
     console.log(`   API:        http://localhost:${config.port}/api/health`);
     console.log(`   Model:      ${config.openai.model}\n`);
+
+    // Keep-alive ping to prevent Render free-tier cold starts (every 14 min)
+    const BASE_URL = process.env.BASE_URL;
+    if (BASE_URL) {
+      setInterval(async () => {
+        try {
+          const res = await fetch(`${BASE_URL}/api/health`);
+          console.log(`[Keep-Alive] Ping ${res.status}`);
+        } catch (err) {
+          console.warn(`[Keep-Alive] Ping failed:`, err.message);
+        }
+      }, 14 * 60 * 1000); // 14 minutes
+      console.log(`   Keep-Alive: Enabled (every 14 min) ✅\n`);
+    }
   });
 }
 

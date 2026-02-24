@@ -17,6 +17,7 @@ import {
 import { getAllViewings, getPendingViewingCount, updateViewingStatus, formatViewingConfirmed, formatViewingCancelled } from "../services/viewingScheduler.js";
 import { sendTextMessage } from "../services/whatsapp.js";
 import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
+import { invalidatePromptCache } from "../services/ai.js";
 import Image from "../db/models/Image.js";
 import Video from "../db/models/Video.js";
 import { isDBConnected } from "../db/connection.js";
@@ -173,6 +174,7 @@ router.get("/properties/:id", async (req, res) => {
 router.post("/properties", async (req, res) => {
   try {
     const property = await createProperty(req.body);
+    invalidatePromptCache();
     res.status(201).json(property);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -188,6 +190,7 @@ router.put("/properties/:id", async (req, res) => {
     if (!property) {
       return res.status(404).json({ error: "Property not found" });
     }
+    invalidatePromptCache();
     res.json(property);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -203,6 +206,7 @@ router.delete("/properties/:id", async (req, res) => {
     if (!result) {
       return res.status(404).json({ error: "Property not found" });
     }
+    invalidatePromptCache();
     // Also remove all associated images and videos from DB
     const deletedImages = await Image.deleteMany({ propertyId: req.params.id });
     const deletedVideos = await Video.deleteMany({ propertyId: req.params.id });

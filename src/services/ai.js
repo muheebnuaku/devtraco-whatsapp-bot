@@ -1,16 +1,46 @@
 import OpenAI from "openai";
 import config from "../config/index.js";
-import { getPropertyContext, getAllProperties } from "../data/properties.js";
+import { getAllProperties } from "../data/properties.js";
 
 const openai = new OpenAI({ apiKey: config.openai.apiKey });
 
+// Cache the system prompt to avoid DB queries on every message
+let cachedPrompt = null;
+let promptCacheTime = 0;
+const PROMPT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Build the system prompt dynamically, loading current properties from DB.
+ * Build the system prompt dynamically, with caching.
  */
 async function buildSystemPrompt() {
-  const propertyContext = await getPropertyContext();
+  const now = Date.now();
+  if (cachedPrompt && (now - promptCacheTime) < PROMPT_CACHE_TTL) {
+    return cachedPrompt;
+  }
+
   const properties = await getAllProperties();
   const propertyIds = properties.map((p) => p.propertyId || p.id).join(", ");
+
+  // Build property context inline (avoid calling getAllProperties twice)
+  const propertyContext = properties.map((p, i) => {
+    let beds;
+    if (!p.bedrooms || p.bedrooms.length === 0) {
+      beds = "Investment Property";
+    } else if (p.bedrooms.includes(0)) {
+      const others = p.bedrooms.filter((b) => b > 0);
+      beds = `Studio${others.length ? `, ${others.join(", ")} bedroom` : ""}`;
+    } else {
+      beds = `${p.bedrooms.join(", ")} bedroom`;
+    }
+    return [
+      `${i + 1}. *${p.name}* \u2014 ${p.location}`,
+      `   - Type: ${p.type} (${beds})`,
+      `   - Price: From $${p.priceFrom.toLocaleString()}`,
+      `   - Status: ${p.status}`,
+      p.description ? `   - ${p.description}` : "",
+      p.projectUrl ? `   - Link: ${p.projectUrl}` : "",
+    ].filter(Boolean).join("\n");
+  }).join("\n\n");
 
   return `You are the AI assistant for ${config.company.name}, a premier real estate developer in Ghana.
 
@@ -77,6 +107,18 @@ FORMAT:
 - Keep responses under 300 words
 - Use short paragraphs
 - One topic per message when possible`;
+
+  cachedPrompt = prompt;
+  promptCacheTime = now;
+  return prompt;
+}
+
+/**
+ * Invalidate the cached system prompt (call after property CRUD).
+ */
+export function invalidatePromptCache() {
+  cachedPrompt = null;
+  promptCacheTime = 0;
 }
 
 /**
