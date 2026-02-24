@@ -187,6 +187,9 @@ router.delete("/properties/:id", async (req, res) => {
     if (!result) {
       return res.status(404).json({ error: "Property not found" });
     }
+    // Also remove all associated images from DB
+    const deleted = await Image.deleteMany({ propertyId: req.params.id });
+    console.log(`[API] Deleted property ${req.params.id} + ${deleted.deletedCount} images`);
     res.json({ success: true, message: "Property deleted" });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -302,7 +305,8 @@ router.post("/properties/:id/images", upload.array("images", 5), async (req, res
     // Update property's images array with the serve URLs
     const allImages = await Image.find({ propertyId }).sort({ order: 1 }).select("imageId");
     const imageUrls = allImages.map((img) => `/api/images/${img.imageId}`);
-    await updateProperty(propertyId, { images: imageUrls });
+    const updated = await updateProperty(propertyId, { images: imageUrls });
+    console.log(`[API] Updated property ${propertyId} images: ${imageUrls.length} URLs, saved=${!!updated}`);
 
     res.status(201).json({ uploaded: savedImages.length, images: savedImages });
   } catch (err) {

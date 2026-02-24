@@ -339,14 +339,10 @@ export async function updateProperty(propertyId, updates) {
 export async function deleteProperty(propertyId) {
   if (!isDBConnected()) throw new Error("Database not connected");
 
-  // Soft delete
-  const doc = await PropertyModel.findOneAndUpdate(
-    { propertyId },
-    { active: false },
-    { new: true }
-  );
+  // Hard delete — permanently removes from MongoDB
+  const doc = await PropertyModel.findOneAndDelete({ propertyId });
   if (!doc) return null;
-  console.log(`[Properties] Deleted (soft): ${doc.name} (${propertyId})`);
+  console.log(`[Properties] Deleted: ${doc.name} (${propertyId})`);
   return docToProperty(doc.toObject());
 }
 
