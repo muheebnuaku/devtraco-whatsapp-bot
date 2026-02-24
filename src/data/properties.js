@@ -180,6 +180,34 @@ const DEFAULT_PROPERTIES = [
   },
 ];
 
+// ───────── Helpers ─────────
+
+/**
+ * Parse bedrooms from various input formats into an array of numbers.
+ * Accepts: [1,2,3], "1,2,3", "1-3 Bedroom", "3,4", etc.
+ */
+function parseBedrooms(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) {
+    return val.map(Number).filter(n => !isNaN(n));
+  }
+  if (typeof val === "number") return [val];
+  if (typeof val === "string") {
+    // Handle "1-3 Bedroom" or "1-3" range format
+    const rangeMatch = val.match(/^(\d+)\s*[-–]\s*(\d+)/);
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1]);
+      const end = parseInt(rangeMatch[2]);
+      const arr = [];
+      for (let i = start; i <= end; i++) arr.push(i);
+      return arr;
+    }
+    // Handle comma-separated "1,2,3" or "1, 2, 3"
+    return val.split(",").map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+  }
+  return [];
+}
+
 // ───────── Normalize DB doc to plain object ─────────
 
 function docToProperty(doc) {
@@ -274,7 +302,7 @@ export async function createProperty(data) {
     name: data.name,
     location: data.location,
     type: data.type || "Apartments",
-    bedrooms: data.bedrooms || [],
+    bedrooms: parseBedrooms(data.bedrooms),
     priceFrom: data.priceFrom,
     currency: data.currency || "USD",
     amenities: data.amenities || [],
@@ -292,6 +320,11 @@ export async function createProperty(data) {
 
 export async function updateProperty(propertyId, updates) {
   if (!isDBConnected()) throw new Error("Database not connected");
+
+  // Parse bedrooms if provided
+  if (updates.bedrooms !== undefined) {
+    updates.bedrooms = parseBedrooms(updates.bedrooms);
+  }
 
   const doc = await PropertyModel.findOneAndUpdate(
     { propertyId },

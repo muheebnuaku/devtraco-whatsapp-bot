@@ -3,239 +3,395 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Devtraco Plus — AI Chatbot Dashboard</title>
+  <title>Devtraco Plus — Admin Dashboard</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
     .hidden { display: none !important; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
+
+    :root {
+      --bg: #f7f8fa;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --border-light: #f1f3f5;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --text-muted: #9ca3af;
+      --accent: #0f172a;
+      --accent-hover: #1e293b;
+      --brand: #0d9488;
+      --brand-light: #ccfbf1;
+      --success: #059669;
+      --success-light: #d1fae5;
+      --warning: #d97706;
+      --warning-light: #fef3c7;
+      --danger: #dc2626;
+      --danger-light: #fee2e2;
+      --info: #2563eb;
+      --info-light: #dbeafe;
+      --radius: 8px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
     }
 
-    /* --- NAV --- */
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ---- NAVBAR ---- */
     .navbar {
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      padding: 16px 32px;
+      background: var(--accent);
+      padding: 0 32px;
+      height: 56px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       position: sticky;
       top: 0;
       z-index: 100;
     }
+    .navbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .navbar-brand .logo {
+      width: 28px;
+      height: 28px;
+      background: var(--brand);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #fff;
+      font-size: 14px;
+    }
     .navbar h1 {
       color: #fff;
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 600;
+      letter-spacing: -0.3px;
     }
-    .navbar h1 span { color: #25D366; }
+    .navbar h1 span {
+      color: var(--text-muted);
+      font-weight: 400;
+      margin-left: 4px;
+    }
     .nav-status {
       display: flex;
       align-items: center;
       gap: 8px;
-      color: #a0aec0;
-      font-size: 13px;
+      color: #9ca3af;
+      font-size: 12px;
     }
     .status-dot {
-      width: 8px; height: 8px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: #25D366;
-      animation: pulse 2s infinite;
+      background: var(--success);
     }
+    .status-dot.live { animation: pulse 2s infinite; }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+      50% { opacity: 0.3; }
     }
 
-    /* --- LAYOUT --- */
+    /* ---- LAYOUT ---- */
     .container {
-      max-width: 1400px;
+      max-width: 1360px;
       margin: 0 auto;
       padding: 24px;
     }
 
-    /* --- TABS --- */
+    /* ---- TABS ---- */
     .tabs {
       display: flex;
-      gap: 4px;
-      background: #fff;
-      border-radius: 12px;
-      padding: 4px;
+      gap: 1px;
+      border-bottom: 1px solid var(--border);
       margin-bottom: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
     .tab {
       padding: 10px 20px;
       border: none;
       background: transparent;
-      border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
-      color: #64748b;
-      transition: all 0.2s;
+      color: var(--text-secondary);
+      transition: all 0.15s;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      font-family: inherit;
     }
-    .tab:hover { background: #f1f5f9; }
+    .tab:hover { color: var(--text-primary); }
     .tab.active {
-      background: #1a1a2e;
-      color: #fff;
+      color: var(--text-primary);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
     }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* --- STAT CARDS --- */
+    /* ---- STAT CARDS ---- */
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 16px;
       margin-bottom: 24px;
     }
     .stat-card {
-      background: #fff;
-      border-radius: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      transition: transform 0.2s;
+      transition: box-shadow 0.2s;
     }
-    .stat-card:hover { transform: translateY(-2px); }
+    .stat-card:hover { box-shadow: var(--shadow); }
     .stat-label {
-      font-size: 12px;
+      font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: #64748b;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      font-weight: 600;
       margin-bottom: 8px;
     }
     .stat-value {
-      font-size: 32px;
+      font-size: 28px;
       font-weight: 700;
-      color: #1a1a2e;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
     }
     .stat-sub {
       font-size: 12px;
-      color: #94a3b8;
+      color: var(--text-muted);
       margin-top: 4px;
     }
-    .stat-card.green .stat-value { color: #25D366; }
-    .stat-card.blue .stat-value { color: #3b82f6; }
-    .stat-card.orange .stat-value { color: #f59e0b; }
-    .stat-card.red .stat-value { color: #ef4444; }
-    .stat-card.purple .stat-value { color: #8b5cf6; }
+    .stat-card.accent .stat-value { color: var(--brand); }
 
-    /* --- CARDS --- */
+    /* ---- CARDS ---- */
     .card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-      margin-bottom: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 20px;
+      overflow: hidden;
     }
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-light);
     }
     .card-title {
-      font-size: 16px;
+      font-size: 14px;
       font-weight: 600;
+      color: var(--text-primary);
     }
+    .card-body { padding: 20px; }
     .card-badge {
       font-size: 11px;
-      padding: 4px 10px;
+      padding: 3px 10px;
       border-radius: 20px;
       font-weight: 600;
     }
-    .badge-hot { background: #fee2e2; color: #ef4444; }
-    .badge-warm { background: #fef3c7; color: #f59e0b; }
-    .badge-cold { background: #dbeafe; color: #3b82f6; }
-    .badge-pending { background: #fef3c7; color: #f59e0b; }
-    .badge-confirmed { background: #dcfce7; color: #16a34a; }
 
-    /* --- CHARTS --- */
+    /* ---- BADGES ---- */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-success { background: var(--success-light); color: var(--success); }
+    .badge-warning { background: var(--warning-light); color: var(--warning); }
+    .badge-danger  { background: var(--danger-light); color: var(--danger); }
+    .badge-info    { background: var(--info-light); color: var(--info); }
+
+    .tier-HOT  { background: var(--danger-light); color: var(--danger); }
+    .tier-WARM { background: var(--warning-light); color: var(--warning); }
+    .tier-COLD { background: var(--info-light); color: var(--info); }
+
+    /* ---- CHARTS ---- */
     .charts-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      gap: 20px;
       margin-bottom: 24px;
     }
 
-    /* --- TABLE --- */
+    /* ---- TABLE ---- */
     .table-wrapper { overflow-x: auto; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    table { width: 100%; border-collapse: collapse; }
     th {
       text-align: left;
-      padding: 12px 16px;
-      font-size: 12px;
+      padding: 10px 16px;
+      font-size: 11px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #64748b;
-      border-bottom: 2px solid #e2e8f0;
-      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      background: #fafbfc;
     }
     td {
-      padding: 12px 16px;
+      padding: 10px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-primary);
+    }
+    tr:hover td { background: #fafbfc; }
+
+    /* ---- BUTTONS ---- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--surface);
+      color: var(--text-primary);
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+    .btn-success:hover { opacity: 0.9; }
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+      border-color: var(--danger);
+    }
+    .btn-danger:hover { opacity: 0.9; }
+    .btn-ghost {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 4px 8px;
+    }
+    .btn-ghost:hover { color: var(--text-primary); background: #f3f4f6; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; }
+    .btn-icon {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
       font-size: 14px;
-      border-bottom: 1px solid #f1f5f9;
     }
-    tr:hover td { background: #f8fafc; }
 
-    .tier-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-    .tier-HOT { background: #fee2e2; color: #dc2626; }
-    .tier-WARM { background: #fef3c7; color: #d97706; }
-    .tier-COLD { background: #dbeafe; color: #2563eb; }
-
-    /* --- CONVERSATION VIEWER --- */
+    /* ---- CONVERSATION VIEWER ---- */
     .chat-container {
       max-height: 500px;
       overflow-y: auto;
-      padding: 16px;
-      background: #e5ddd5;
-      border-radius: 8px;
+      padding: 20px;
+      background: #f9fafb;
+      border-radius: 6px;
+      border: 1px solid var(--border);
     }
     .chat-bubble {
-      max-width: 75%;
+      max-width: 70%;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 10px;
       margin-bottom: 8px;
-      font-size: 14px;
-      line-height: 1.5;
+      font-size: 13px;
+      line-height: 1.6;
       word-wrap: break-word;
     }
     .chat-user {
-      background: #dcf8c6;
+      background: var(--accent);
+      color: #fff;
       margin-left: auto;
-      border-bottom-right-radius: 4px;
+      border-bottom-right-radius: 2px;
     }
     .chat-bot {
-      background: #fff;
+      background: var(--surface);
+      border: 1px solid var(--border);
       margin-right: auto;
-      border-bottom-left-radius: 4px;
+      border-bottom-left-radius: 2px;
     }
     .chat-time {
-      font-size: 11px;
-      color: #999;
+      font-size: 10px;
+      color: var(--text-muted);
       margin-top: 4px;
     }
+    .chat-user .chat-time { color: rgba(255,255,255,0.6); }
     .chat-empty {
       text-align: center;
-      color: #999;
-      padding: 40px;
+      color: var(--text-muted);
+      padding: 60px 20px;
+      font-size: 13px;
     }
 
-    /* --- SEARCH --- */
+    /* ---- FORMS ---- */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .form-input,
+    .form-select,
+    .form-textarea {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
+      color: var(--text-primary);
+      background: var(--surface);
+      transition: border-color 0.15s;
+      outline: none;
+    }
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15,23,42,0.06);
+    }
+    .form-textarea { resize: vertical; min-height: 60px; }
+    .form-file {
+      padding: 8px 12px;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      background: #fafbfc;
+      cursor: pointer;
+    }
+
+    /* ---- SEARCH BAR ---- */
     .search-bar {
       display: flex;
       gap: 8px;
@@ -243,127 +399,210 @@
     }
     .search-bar input {
       flex: 1;
-      padding: 10px 16px;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      font-family: inherit;
       outline: none;
     }
-    .search-bar input:focus { border-color: #25D366; }
-    .btn {
-      padding: 10px 20px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .btn-primary { background: #1a1a2e; color: #fff; }
-    .btn-primary:hover { background: #16213e; }
-    .btn-success { background: #25D366; color: #fff; }
-    .btn-success:hover { background: #1da851; }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .search-bar input:focus { border-color: var(--accent); }
 
-    /* --- REFRESH --- */
-    .refresh-bar {
+    /* ---- MODAL ---- */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+    .modal-content {
+      background: var(--surface);
+      border-radius: 12px;
+      max-width: 700px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    }
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
     }
-    .auto-refresh {
+    .modal-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .modal-body { padding: 20px; }
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
       display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #64748b;
+      justify-content: flex-end;
     }
 
-    /* --- LOADING --- */
+    /* ---- REFRESH BAR ---- */
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .toolbar-left label { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+
+    /* ---- IMAGE GRID ---- */
+    .image-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .image-card {
+      position: relative;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      width: 140px;
+    }
+    .image-card img {
+      width: 140px;
+      height: 100px;
+      object-fit: cover;
+      display: block;
+    }
+    .image-card-info {
+      padding: 4px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: #fafbfc;
+      border-top: 1px solid var(--border-light);
+    }
+    .image-card-delete {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
+      background: rgba(0,0,0,0.6);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .image-card-delete:hover { background: var(--danger); }
+
+    /* ---- LOADING ---- */
     .loading {
       text-align: center;
       padding: 40px;
-      color: #94a3b8;
+      color: var(--text-muted);
+      font-size: 13px;
     }
     .spinner {
       display: inline-block;
-      width: 32px; height: 32px;
-      border: 3px solid #e2e8f0;
-      border-top-color: #25D366;
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.6s linear infinite;
       margin-bottom: 8px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ---- RESPONSIVE ---- */
     @media (max-width: 768px) {
-      .container { padding: 12px; }
+      .container { padding: 16px; }
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .charts-grid { grid-template-columns: 1fr; }
-      .navbar { padding: 12px 16px; }
-      .tabs { overflow-x: auto; }
+      .form-grid { grid-template-columns: 1fr; }
+      .navbar { padding: 0 16px; }
+      .tabs { overflow-x: auto; white-space: nowrap; }
+      .tab { padding: 10px 14px; }
     }
   </style>
 </head>
 <body>
 
 <nav class="navbar">
-  <h1>🏠 Devtraco Plus <span>AI Dashboard</span></h1>
+  <div class="navbar-brand">
+    <div class="logo">D</div>
+    <h1>Devtraco Plus <span>Admin Dashboard</span></h1>
+  </div>
   <div class="nav-status">
-    <div class="status-dot"></div>
+    <div class="status-dot live" id="statusDot"></div>
     <span id="serverStatus">Connecting...</span>
   </div>
 </nav>
 
 <div class="container">
+
   <!-- Tabs -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
-    <button class="tab" onclick="switchTab('leads')">👥 Leads</button>
-    <button class="tab" onclick="switchTab('conversations')">💬 Conversations</button>
-    <button class="tab" onclick="switchTab('viewings')">📅 Viewings</button>
-    <button class="tab" onclick="switchTab('properties')">🏠 Properties</button>
-    <button class="tab" onclick="switchTab('crm')">🔗 CRM Sync</button>
+    <button class="tab active" onclick="switchTab('overview')">Overview</button>
+    <button class="tab" onclick="switchTab('leads')">Leads</button>
+    <button class="tab" onclick="switchTab('conversations')">Conversations</button>
+    <button class="tab" onclick="switchTab('viewings')">Viewings</button>
+    <button class="tab" onclick="switchTab('properties')">Properties</button>
+    <button class="tab" onclick="switchTab('crm')">CRM Sync</button>
   </div>
 
-  <!-- ============ OVERVIEW TAB ============ -->
+  <!-- ============ OVERVIEW ============ -->
   <div id="tab-overview" class="tab-content active">
-    <div class="refresh-bar">
-      <div class="auto-refresh">
-        <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
-        <label for="autoRefresh">Auto-refresh (30s)</label>
-        <span id="lastUpdated">—</span>
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <label>
+          <input type="checkbox" id="autoRefresh" checked onchange="toggleAutoRefresh()">
+          Auto-refresh (30s)
+        </label>
+        <span id="lastUpdated"></span>
       </div>
-      <button class="btn btn-primary btn-sm" onclick="refreshAll()">🔄 Refresh Now</button>
+      <button class="btn btn-sm" onclick="refreshAll()">Refresh</button>
     </div>
 
     <div class="stats-grid" id="statsGrid">
-      <div class="loading"><div class="spinner"></div><br>Loading stats...</div>
+      <div class="loading"><div class="spinner"></div><br>Loading...</div>
     </div>
 
     <div class="charts-grid">
       <div class="card">
         <div class="card-header"><h3 class="card-title">Lead Distribution</h3></div>
-        <canvas id="leadPieChart" height="250"></canvas>
+        <div class="card-body"><canvas id="leadPieChart" height="250"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-header"><h3 class="card-title">Lead Scores</h3></div>
-        <canvas id="leadBarChart" height="250"></canvas>
+        <div class="card-header"><h3 class="card-title">Top Lead Scores</h3></div>
+        <div class="card-body"><canvas id="leadBarChart" height="250"></canvas></div>
       </div>
     </div>
   </div>
 
-  <!-- ============ LEADS TAB ============ -->
+  <!-- ============ LEADS ============ -->
   <div id="tab-leads" class="tab-content">
     <div class="search-bar">
-      <input type="text" id="leadSearch" placeholder="Search by name, phone, or email..." oninput="filterLeads()">
-      <button class="btn btn-primary btn-sm" onclick="refreshLeads()">🔄 Refresh</button>
+      <input type="text" id="leadSearch" placeholder="Search leads by name, phone, or email..." oninput="filterLeads()">
+      <button class="btn btn-sm" onclick="refreshLeads()">Refresh</button>
     </div>
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Captured Leads</h3>
-        <span id="leadCount" class="card-badge badge-warm">0 leads</span>
+        <span class="badge badge-info" id="leadCount">0 leads</span>
       </div>
       <div class="table-wrapper">
         <table>
@@ -376,29 +615,29 @@
               <th>Budget</th>
               <th>Score</th>
               <th>Tier</th>
-              <th>Actions</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="leadsTable">
-            <tr><td colspan="8" class="loading"><div class="spinner"></div><br>Loading leads...</td></tr>
+            <tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ============ CONVERSATIONS TAB ============ -->
+  <!-- ============ CONVERSATIONS ============ -->
   <div id="tab-conversations" class="tab-content">
     <div class="search-bar">
       <input type="text" id="convoSearch" placeholder="Enter phone number (e.g. 233592405403)">
-      <button class="btn btn-primary" onclick="loadConversation()">Load Chat</button>
-      <button class="btn btn-sm" style="background:#64748b;color:#fff;" onclick="refreshConvoList()">🔄 All Chats</button>
+      <button class="btn btn-primary btn-sm" onclick="loadConversation()">Load Chat</button>
+      <button class="btn btn-sm" onclick="refreshConvoList()">All Chats</button>
     </div>
 
-    <div class="card" id="convoListCard">
+    <div class="card">
       <div class="card-header">
         <h3 class="card-title">Recent Conversations</h3>
-        <span id="convoCount" class="card-badge badge-warm">0 chats</span>
+        <span class="badge badge-info" id="convoCount">0 chats</span>
       </div>
       <div class="table-wrapper">
         <table>
@@ -410,11 +649,11 @@
               <th>Tier</th>
               <th>State</th>
               <th>Last Message</th>
-              <th>Actions</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="convoListTable">
-            <tr><td colspan="7" class="loading"><div class="spinner"></div><br>Loading...</td></tr>
+            <tr><td colspan="7" class="loading"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -423,20 +662,20 @@
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Conversation Viewer</h3>
-        <span id="convoInfo" style="font-size:13px; color:#64748b;"></span>
+        <span id="convoInfo" style="font-size:12px; color:var(--text-muted);"></span>
       </div>
       <div class="chat-container" id="chatContainer">
-        <div class="chat-empty">Select a conversation from the table above or enter a phone number to view chat</div>
+        <div class="chat-empty">Select a conversation or enter a phone number above</div>
       </div>
     </div>
   </div>
 
-  <!-- ============ VIEWINGS TAB ============ -->
+  <!-- ============ VIEWINGS ============ -->
   <div id="tab-viewings" class="tab-content">
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Scheduled Viewings</h3>
-        <button class="btn btn-primary btn-sm" onclick="refreshViewings()">🔄 Refresh</button>
+        <button class="btn btn-sm" onclick="refreshViewings()">Refresh</button>
       </div>
       <div class="table-wrapper">
         <table>
@@ -449,135 +688,136 @@
               <th>Date</th>
               <th>Time</th>
               <th>Status</th>
-              <th>Actions</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="viewingsTable">
-            <tr><td colspan="8" class="loading"><div class="spinner"></div><br>Loading viewings...</td></tr>
+            <tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ============ PROPERTIES TAB ============ -->
+  <!-- ============ PROPERTIES ============ -->
   <div id="tab-properties" class="tab-content">
-    <!-- Add / Edit Property Form -->
-    <div class="card" id="propertyFormCard" style="margin-bottom:20px;">
+
+    <!-- Property Form -->
+    <div class="card" id="propertyFormCard">
       <div class="card-header">
-        <h3 class="card-title" id="propertyFormTitle">➕ Add New Property</h3>
-        <button onclick="resetPropertyForm()" style="background:#64748b;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;" id="cancelEditBtn" class="hidden">Cancel Edit</button>
+        <h3 class="card-title" id="propertyFormTitle">Add New Property</h3>
+        <button class="btn btn-sm hidden" id="cancelEditBtn" onclick="resetPropertyForm()">Cancel</button>
       </div>
-      <form id="propertyForm" onsubmit="submitProperty(event)" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:8px;">
-        <input type="hidden" id="pf_editId">
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Property Name *</label>
-          <input type="text" id="pf_name" required placeholder="e.g. One Solonos" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Location *</label>
-          <input type="text" id="pf_location" required placeholder="e.g. Airport City, Accra" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Type *</label>
-          <select id="pf_type" required style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-            <option value="">Select type</option>
-            <option value="Apartments">Apartments</option>
-            <option value="Hotel Apartments">Hotel Apartments</option>
-            <option value="Townhouses">Townhouses</option>
-            <option value="Townhomes">Townhomes</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Bedrooms</label>
-          <input type="text" id="pf_bedrooms" placeholder="e.g. 1-3 Bedroom" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Price From (USD) *</label>
-          <input type="number" id="pf_priceFrom" required min="0" placeholder="e.g. 150000" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Currency</label>
-          <input type="text" id="pf_currency" value="USD" placeholder="USD" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Status</label>
-          <select id="pf_status" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-            <option value="Now Selling">Now Selling</option>
-            <option value="Coming Soon">Coming Soon</option>
-            <option value="Sold Out">Sold Out</option>
-          </select>
-        </div>
-        <div>
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Project URL</label>
-          <input type="url" id="pf_projectUrl" placeholder="https://..." style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div style="grid-column:1/-1;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Amenities (comma-separated)</label>
-          <input type="text" id="pf_amenities" placeholder="e.g. Swimming Pool, Gym, 24/7 Security" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;">
-        </div>
-        <div style="grid-column:1/-1;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Property Images (max 5, up to 5MB each)</label>
-          <input type="file" id="pf_images" accept="image/*" multiple style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;background:#fff;">
-          <div id="pf_imagePreview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
-        </div>
-        <div style="grid-column:1/-1;">
-          <label style="font-size:12px;font-weight:600;color:#64748b;">Description</label>
-          <textarea id="pf_description" rows="2" placeholder="Brief property description..." style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:6px;font-size:14px;resize:vertical;"></textarea>
-        </div>
-        <div style="grid-column:1/-1;display:flex;gap:10px;">
-          <button type="submit" style="background:#25D366;color:#fff;border:none;padding:10px 24px;border-radius:8px;cursor:pointer;font-weight:600;font-size:14px;" id="propertySubmitBtn">Add Property</button>
-        </div>
-      </form>
+      <div class="card-body">
+        <form id="propertyForm" onsubmit="submitProperty(event)" class="form-grid">
+          <input type="hidden" id="pf_editId">
+          <div class="form-group">
+            <label class="form-label">Property Name *</label>
+            <input type="text" id="pf_name" required placeholder="e.g. One Solonos" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Location *</label>
+            <input type="text" id="pf_location" required placeholder="e.g. Airport City, Accra" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Type *</label>
+            <select id="pf_type" required class="form-select">
+              <option value="">Select type</option>
+              <option value="Apartments">Apartments</option>
+              <option value="Hotel Apartments">Hotel Apartments</option>
+              <option value="Townhouses">Townhouses</option>
+              <option value="Townhomes">Townhomes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bedrooms</label>
+            <input type="text" id="pf_bedrooms" placeholder="e.g. 1,2,3 or 1-3" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Starting Price (USD) *</label>
+            <input type="number" id="pf_priceFrom" required min="0" placeholder="e.g. 150000" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Currency</label>
+            <input type="text" id="pf_currency" value="USD" class="form-input">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Status</label>
+            <select id="pf_status" class="form-select">
+              <option value="Now Selling">Now Selling</option>
+              <option value="Coming Soon">Coming Soon</option>
+              <option value="Sold Out">Sold Out</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Project URL</label>
+            <input type="url" id="pf_projectUrl" placeholder="https://..." class="form-input">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Amenities (comma-separated)</label>
+            <input type="text" id="pf_amenities" placeholder="Swimming Pool, Gym, 24/7 Security" class="form-input">
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Property Images (max 5, up to 5MB each)</label>
+            <input type="file" id="pf_images" accept="image/*" multiple class="form-file">
+            <div id="pf_imagePreview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
+          </div>
+          <div class="form-group full">
+            <label class="form-label">Description</label>
+            <textarea id="pf_description" rows="2" placeholder="Brief property description..." class="form-textarea"></textarea>
+          </div>
+          <div class="form-group full" style="margin-top:4px;">
+            <button type="submit" class="btn btn-primary" id="propertySubmitBtn">Add Property</button>
+          </div>
+        </form>
+      </div>
     </div>
 
     <!-- Property Table -->
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Property Portfolio</h3>
-        <span id="propertyCount" style="color:#64748b;font-size:13px;"></span>
+        <span class="badge badge-info" id="propertyCount"></span>
       </div>
       <div class="table-wrapper">
         <table>
           <thead>
             <tr>
-              <th>Images</th>
+              <th style="width:80px;">Image</th>
               <th>Name</th>
               <th>Location</th>
               <th>Type</th>
-              <th>From Price</th>
+              <th>Price From</th>
               <th>Status</th>
               <th>Link</th>
-              <th>Actions</th>
+              <th style="width:120px;"></th>
             </tr>
           </thead>
           <tbody id="propertiesTable">
-            <tr><td colspan="8" class="loading"><div class="spinner"></div><br>Loading properties...</td></tr>
+            <tr><td colspan="8" class="loading"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- ============ CRM SYNC TAB ============ -->
+  <!-- ============ CRM SYNC ============ -->
   <div id="tab-crm" class="tab-content">
     <div class="stats-grid" id="crmStatsGrid">
-      <div class="loading"><div class="spinner"></div><br>Loading CRM status...</div>
+      <div class="loading"><div class="spinner"></div></div>
     </div>
 
     <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">CRM Sync Configuration</h3>
-      </div>
-      <div id="crmConfig" style="padding:8px;">
-        <p style="color:#64748b;">Loading...</p>
+      <div class="card-header"><h3 class="card-title">Configuration</h3></div>
+      <div class="card-body" id="crmConfig">
+        <p style="color:var(--text-muted);">Loading...</p>
       </div>
     </div>
 
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Sync Audit Log</h3>
-        <button class="btn btn-primary btn-sm" onclick="refreshCRM()">🔄 Refresh</button>
+        <button class="btn btn-sm" onclick="refreshCRM()">Refresh</button>
       </div>
       <div class="table-wrapper">
         <table>
@@ -591,12 +831,18 @@
             </tr>
           </thead>
           <tbody id="crmLogTable">
-            <tr><td colspan="5" class="loading"><div class="spinner"></div><br>Loading sync log...</td></tr>
+            <tr><td colspan="5" class="loading"><div class="spinner"></div></td></tr>
           </tbody>
         </table>
       </div>
     </div>
   </div>
+
+</div>
+
+<!-- Image Manager Modal -->
+<div id="imageModal" class="modal-overlay hidden">
+  <div class="modal-content" id="imageModalContent"></div>
 </div>
 
 <script>
@@ -640,9 +886,11 @@
       allLeads = leadsRes.leads || [];
 
       document.getElementById('serverStatus').textContent = 'Live';
-      document.getElementById('lastUpdated').textContent = `Updated: ${new Date().toLocaleTimeString()}`;
+      document.getElementById('statusDot').classList.add('live');
+      document.getElementById('lastUpdated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
     } catch (err) {
       document.getElementById('serverStatus').textContent = 'Error';
+      document.getElementById('statusDot').classList.remove('live');
       console.error('Refresh failed:', err);
     }
   }
@@ -659,30 +907,30 @@
   function renderStats(stats, leads, viewings) {
     const grid = document.getElementById('statsGrid');
     grid.innerHTML = `
-      <div class="stat-card green">
+      <div class="stat-card accent">
         <div class="stat-label">Active Sessions</div>
         <div class="stat-value">${stats.activeSessions}</div>
         <div class="stat-sub">Live conversations</div>
       </div>
-      <div class="stat-card blue">
+      <div class="stat-card">
         <div class="stat-label">Total Leads</div>
         <div class="stat-value">${leads.count}</div>
-        <div class="stat-sub">${stats.leads?.hot || 0} hot · ${stats.leads?.warm || 0} warm · ${stats.leads?.cold || 0} cold</div>
+        <div class="stat-sub">${stats.leads?.hot || 0} hot &middot; ${stats.leads?.warm || 0} warm &middot; ${stats.leads?.cold || 0} cold</div>
       </div>
-      <div class="stat-card purple">
-        <div class="stat-label">Total Messages</div>
+      <div class="stat-card">
+        <div class="stat-label">Messages</div>
         <div class="stat-value">${stats.totalMessages}</div>
-        <div class="stat-sub">Across all conversations</div>
+        <div class="stat-sub">All conversations</div>
       </div>
-      <div class="stat-card orange">
+      <div class="stat-card">
         <div class="stat-label">Pending Viewings</div>
         <div class="stat-value">${viewings.pending}</div>
-        <div class="stat-sub">${viewings.total} total · ${viewings.confirmed} confirmed</div>
+        <div class="stat-sub">${viewings.total} total &middot; ${viewings.confirmed} confirmed</div>
       </div>
-      <div class="stat-card red">
+      <div class="stat-card">
         <div class="stat-label">Escalated</div>
         <div class="stat-value">${stats.escalated}</div>
-        <div class="stat-sub">Awaiting human agent</div>
+        <div class="stat-sub">Awaiting agent</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Properties</div>
@@ -699,52 +947,51 @@
     const warm = leads.filter(l => l.tier === 'WARM').length;
     const cold = leads.filter(l => l.tier === 'COLD').length;
 
-    // Pie chart
     if (leadPieChart) leadPieChart.destroy();
     const pieCtx = document.getElementById('leadPieChart').getContext('2d');
     leadPieChart = new Chart(pieCtx, {
       type: 'doughnut',
       data: {
-        labels: ['Hot 🔥', 'Warm 🌤️', 'Cold ❄️'],
+        labels: ['Hot', 'Warm', 'Cold'],
         datasets: [{
           data: [hot, warm, cold],
-          backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6'],
+          backgroundColor: ['#dc2626', '#d97706', '#2563eb'],
           borderWidth: 0,
-          hoverOffset: 8,
+          hoverOffset: 6,
         }],
       },
       options: {
         responsive: true,
+        cutout: '65%',
         plugins: {
-          legend: { position: 'bottom' },
+          legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyle: 'circle', font: { size: 12, family: 'Inter' } } },
         },
       },
     });
 
-    // Bar chart
     if (leadBarChart) leadBarChart.destroy();
-    const scores = leads.map(l => l.score).sort((a, b) => b - a).slice(0, 20);
-    const names = leads.sort((a, b) => b.score - a.score).slice(0, 20).map(l => l.name || l.phone);
+    const sortedLeads = [...leads].sort((a, b) => b.score - a.score).slice(0, 15);
     const barCtx = document.getElementById('leadBarChart').getContext('2d');
     leadBarChart = new Chart(barCtx, {
       type: 'bar',
       data: {
-        labels: names,
+        labels: sortedLeads.map(l => l.name || l.phone),
         datasets: [{
-          label: 'Lead Score',
-          data: scores,
-          backgroundColor: scores.map(s => s >= 80 ? '#ef4444' : s >= 50 ? '#f59e0b' : '#3b82f6'),
-          borderRadius: 6,
+          label: 'Score',
+          data: sortedLeads.map(l => l.score),
+          backgroundColor: sortedLeads.map(l => l.score >= 80 ? '#dc2626' : l.score >= 50 ? '#d97706' : '#2563eb'),
+          borderRadius: 4,
+          barThickness: 16,
         }],
       },
       options: {
         responsive: true,
+        indexAxis: 'y',
         scales: {
-          y: { beginAtZero: true, max: 100 },
+          x: { beginAtZero: true, max: 100, grid: { color: '#f3f4f6' } },
+          y: { grid: { display: false }, ticks: { font: { size: 11, family: 'Inter' } } },
         },
-        plugins: {
-          legend: { display: false },
-        },
+        plugins: { legend: { display: false } },
       },
     });
   }
@@ -756,9 +1003,7 @@
       allLeads = data.leads || [];
       document.getElementById('leadCount').textContent = `${data.count} leads`;
       renderLeadsTable(allLeads);
-    } catch (err) {
-      console.error('Failed to load leads:', err);
-    }
+    } catch (err) { console.error('Failed to load leads:', err); }
   }
 
   function filterLeads() {
@@ -774,19 +1019,19 @@
   function renderLeadsTable(leads) {
     const tbody = document.getElementById('leadsTable');
     if (leads.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:40px;">No leads captured yet. Conversations will appear here as customers interact with the bot.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">No leads captured yet</td></tr>';
       return;
     }
     tbody.innerHTML = leads.map(l => `
       <tr>
-        <td><strong>${l.name || '—'}</strong></td>
+        <td><strong>${l.name || '\u2014'}</strong></td>
         <td>${l.phone}</td>
-        <td>${l.email || '—'}</td>
-        <td>${l.propertyInterest || '—'}</td>
-        <td>${l.budget || '—'}</td>
+        <td>${l.email || '\u2014'}</td>
+        <td>${l.propertyInterest || '\u2014'}</td>
+        <td>${l.budget || '\u2014'}</td>
         <td><strong>${l.score}</strong>/100</td>
-        <td><span class="tier-badge tier-${l.tier}">${l.tier}</span></td>
-        <td><button class="btn btn-primary btn-sm" onclick="viewChat('${l.phone}')">💬 Chat</button></td>
+        <td><span class="badge tier-${l.tier}">${l.tier}</span></td>
+        <td><button class="btn btn-sm" onclick="viewChat('${l.phone}')">View Chat</button></td>
       </tr>
     `).join('');
   }
@@ -799,7 +1044,7 @@
       document.getElementById('convoCount').textContent = `${data.count} chats`;
 
       if (data.conversations.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:40px;">No conversations yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:40px;">No conversations yet</td></tr>';
         return;
       }
 
@@ -810,15 +1055,13 @@
             <td>${c.userId}</td>
             <td>${c.messageCount}</td>
             <td><strong>${c.leadScore}</strong></td>
-            <td><span class="tier-badge tier-${c.leadTier}">${c.leadTier}</span></td>
+            <td><span class="badge tier-${c.leadTier}">${c.leadTier}</span></td>
             <td>${c.state}</td>
-            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage || '—'}</td>
-            <td><button class="btn btn-primary btn-sm" onclick="viewChat('${c.userId}')">💬 View</button></td>
+            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage || '\u2014'}</td>
+            <td><button class="btn btn-sm" onclick="viewChat('${c.userId}')">View</button></td>
           </tr>
         `).join('');
-    } catch (err) {
-      console.error('Failed to load conversations:', err);
-    }
+    } catch (err) { console.error('Failed to load conversations:', err); }
   }
 
   // ========== CONVERSATION VIEWER ==========
@@ -842,7 +1085,7 @@
     if (!phone) return;
 
     const container = document.getElementById('chatContainer');
-    container.innerHTML = '<div class="loading"><div class="spinner"></div><br>Loading...</div>';
+    container.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
 
     try {
       const data = await fetch(`${API}/conversations/${phone}`).then(r => {
@@ -851,7 +1094,7 @@
       });
 
       document.getElementById('convoInfo').textContent =
-        `${data.messageCount} messages · Score: ${data.leadScore} · State: ${data.state}`;
+        `${data.messageCount} messages \u00b7 Score: ${data.leadScore} \u00b7 ${data.state}`;
 
       if (data.history.length === 0) {
         container.innerHTML = '<div class="chat-empty">No messages in this conversation</div>';
@@ -867,7 +1110,7 @@
 
       container.scrollTop = container.scrollHeight;
     } catch (err) {
-      container.innerHTML = '<div class="chat-empty">No conversation found for this number. Make sure to use the full number without + (e.g. 233592405403)</div>';
+      container.innerHTML = '<div class="chat-empty">No conversation found. Use the full number without + (e.g. 233592405403)</div>';
     }
   }
 
@@ -878,30 +1121,28 @@
       const tbody = document.getElementById('viewingsTable');
 
       if (data.viewings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:40px;">No viewings scheduled yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-muted);padding:40px;">No viewings scheduled yet</td></tr>';
         return;
       }
 
       tbody.innerHTML = data.viewings.map(v => `
         <tr>
-          <td><strong>${v.id}</strong></td>
-          <td>${v.propertyName}</td>
+          <td style="font-family:monospace;font-size:12px;">${v.id}</td>
+          <td><strong>${v.propertyName}</strong></td>
           <td>${v.name}</td>
           <td>${v.phone}</td>
           <td>${v.preferredDate}</td>
           <td>${v.preferredTime}</td>
-          <td><span class="tier-badge ${v.status === 'CONFIRMED' ? 'tier-HOT' : v.status === 'PENDING' ? 'tier-WARM' : 'tier-COLD'}">${v.status}</span></td>
+          <td><span class="badge ${v.status === 'CONFIRMED' ? 'badge-success' : v.status === 'PENDING' ? 'badge-warning' : 'badge-danger'}">${v.status}</span></td>
           <td>
             ${v.status === 'PENDING' ? `
-              <button class="btn btn-success btn-sm" onclick="updateViewing('${v.id}', 'CONFIRMED')">✅ Confirm</button>
-              <button class="btn btn-sm" style="background:#ef4444;color:#fff;margin-left:4px;" onclick="updateViewing('${v.id}', 'CANCELLED')">❌ Cancel</button>
-            ` : '—'}
+              <button class="btn btn-success btn-sm" onclick="updateViewing('${v.id}', 'CONFIRMED')">Confirm</button>
+              <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="updateViewing('${v.id}', 'CANCELLED')">Cancel</button>
+            ` : '\u2014'}
           </td>
         </tr>
       `).join('');
-    } catch (err) {
-      console.error('Failed to load viewings:', err);
-    }
+    } catch (err) { console.error('Failed to load viewings:', err); }
   }
 
   async function updateViewing(id, status) {
@@ -912,9 +1153,7 @@
         body: JSON.stringify({ status }),
       });
       refreshViewings();
-    } catch (err) {
-      alert('Failed to update viewing: ' + err.message);
-    }
+    } catch (err) { alert('Failed to update viewing: ' + err.message); }
   }
 
   // ========== PROPERTIES ==========
@@ -925,35 +1164,39 @@
       document.getElementById('propertyCount').textContent = `${data.properties.length} properties`;
 
       tbody.innerHTML = data.properties.map(p => {
-        const imgThumb = (p.images && p.images.length > 0)
-          ? `<img src="${p.images[0]}" style="width:60px;height:40px;object-fit:cover;border-radius:4px;" onerror="this.style.display='none'">`
-          : '<span style="color:#94a3b8;font-size:11px;">No image</span>';
+        const thumb = (p.images && p.images.length > 0)
+          ? `<img src="${p.images[0]}" style="width:56px;height:38px;object-fit:cover;border-radius:4px;display:block;" onerror="this.style.display='none'">`
+          : '<span style="color:var(--text-muted);font-size:11px;">None</span>';
         return `
         <tr>
-          <td>${imgThumb} <span style="font-size:11px;color:#64748b;">${p.images ? p.images.length : 0}</span></td>
+          <td>${thumb}</td>
           <td><strong>${escapeHtml(p.name)}</strong></td>
           <td>${escapeHtml(p.location)}</td>
           <td>${escapeHtml(p.type)}</td>
           <td>$${Number(p.priceFrom).toLocaleString()}</td>
           <td><span class="badge ${p.status === 'Now Selling' ? 'badge-success' : p.status === 'Coming Soon' ? 'badge-warning' : 'badge-danger'}">${escapeHtml(p.status)}</span></td>
-          <td>${p.projectUrl ? `<a href="${p.projectUrl}" target="_blank" style="color:#25D366;">Visit →</a>` : '—'}</td>
+          <td>${p.projectUrl ? `<a href="${p.projectUrl}" target="_blank" style="color:var(--brand);text-decoration:none;font-size:12px;">Visit &rarr;</a>` : '\u2014'}</td>
           <td style="white-space:nowrap;">
-            <button onclick="openImageManager('${p.propertyId || p.id}')" style="background:#8b5cf6;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:4px;">🖼️</button>
-            <button onclick='editProperty(${JSON.stringify(p).replace(/'/g, "&#39;")})' style="background:#3b82f6;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:4px;">✏️</button>
-            <button onclick="deleteProperty('${p.propertyId || p.id}')" style="background:#ef4444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;">🗑️</button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openImageManager('${p.propertyId || p.id}')" title="Manage images">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick='editProperty(${JSON.stringify(p).replace(/'/g, "&#39;")})' title="Edit property">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+            </button>
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="deleteProperty('${p.propertyId || p.id}')" title="Delete property" style="color:var(--danger);">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </button>
           </td>
         </tr>`;
       }).join('');
-    } catch (err) {
-      console.error('Failed to load properties:', err);
-    }
+    } catch (err) { console.error('Failed to load properties:', err); }
   }
 
   function resetPropertyForm() {
     document.getElementById('propertyForm').reset();
     document.getElementById('pf_editId').value = '';
     document.getElementById('pf_currency').value = 'USD';
-    document.getElementById('propertyFormTitle').textContent = '➕ Add New Property';
+    document.getElementById('propertyFormTitle').textContent = 'Add New Property';
     document.getElementById('propertySubmitBtn').textContent = 'Add Property';
     document.getElementById('cancelEditBtn').classList.add('hidden');
     document.getElementById('pf_imagePreview').innerHTML = '';
@@ -964,22 +1207,21 @@
     document.getElementById('pf_name').value = p.name || '';
     document.getElementById('pf_location').value = p.location || '';
     document.getElementById('pf_type').value = p.type || '';
-    document.getElementById('pf_bedrooms').value = p.bedrooms || '';
+    document.getElementById('pf_bedrooms').value = (p.bedrooms || []).join(', ');
     document.getElementById('pf_priceFrom').value = p.priceFrom || '';
     document.getElementById('pf_currency').value = p.currency || 'USD';
     document.getElementById('pf_status').value = p.status || 'Now Selling';
     document.getElementById('pf_projectUrl').value = p.projectUrl || '';
     document.getElementById('pf_amenities').value = (p.amenities || []).join(', ');
     document.getElementById('pf_description').value = p.description || '';
-    document.getElementById('propertyFormTitle').textContent = '✏️ Edit Property';
+    document.getElementById('propertyFormTitle').textContent = 'Edit Property';
     document.getElementById('propertySubmitBtn').textContent = 'Update Property';
     document.getElementById('cancelEditBtn').classList.remove('hidden');
 
-    // Show existing images as preview
     const preview = document.getElementById('pf_imagePreview');
     if (p.images && p.images.length > 0) {
       preview.innerHTML = p.images.map(url =>
-        `<img src="${url}" style="width:80px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #e2e8f0;" onerror="this.style.display='none'">`
+        `<img src="${url}" style="width:64px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--border);" onerror="this.style.display='none'">`
       ).join('');
     } else {
       preview.innerHTML = '';
@@ -992,13 +1234,14 @@
     e.preventDefault();
     const editId = document.getElementById('pf_editId').value;
     const amenitiesRaw = document.getElementById('pf_amenities').value;
+    const bedroomsRaw = document.getElementById('pf_bedrooms').value;
     const imageFiles = document.getElementById('pf_images').files;
 
     const body = {
       name: document.getElementById('pf_name').value,
       location: document.getElementById('pf_location').value,
       type: document.getElementById('pf_type').value,
-      bedrooms: document.getElementById('pf_bedrooms').value,
+      bedrooms: bedroomsRaw,
       priceFrom: Number(document.getElementById('pf_priceFrom').value),
       currency: document.getElementById('pf_currency').value || 'USD',
       status: document.getElementById('pf_status').value,
@@ -1030,7 +1273,6 @@
       const property = await res.json();
       const propId = property.propertyId || property.id || editId;
 
-      // Upload images if any selected
       if (imageFiles.length > 0 && propId) {
         await uploadPropertyImages(propId, imageFiles);
       }
@@ -1044,24 +1286,14 @@
 
   async function uploadPropertyImages(propertyId, files) {
     const formData = new FormData();
-    for (let i = 0; i < files.length; i++) {
-      formData.append('images', files[i]);
-    }
+    for (let i = 0; i < files.length; i++) formData.append('images', files[i]);
     try {
-      const res = await fetch(`${API}/properties/${propertyId}/images`, {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch(`${API}/properties/${propertyId}/images`, { method: 'POST', body: formData });
       if (!res.ok) {
         const err = await res.json();
-        console.error('Image upload error:', err.error);
         alert('Property saved but image upload failed: ' + err.error);
-      } else {
-        const result = await res.json();
-        console.log(`Uploaded ${result.uploaded} images for ${propertyId}`);
       }
     } catch (err) {
-      console.error('Image upload error:', err);
       alert('Property saved but image upload failed: ' + err.message);
     }
   }
@@ -1069,43 +1301,36 @@
   async function openImageManager(propertyId) {
     try {
       const data = await fetch(`${API}/properties/${propertyId}/images`).then(r => r.json());
-      let html = `<div style="padding:16px;">
-        <h3 style="margin-bottom:12px;">🖼️ Images for ${propertyId} (${data.count})</h3>`;
+      const modal = document.getElementById('imageModal');
+      const content = document.getElementById('imageModalContent');
 
+      let imagesHTML = '';
       if (data.images.length === 0) {
-        html += '<p style="color:#94a3b8;">No images uploaded yet. Edit the property and add images.</p>';
+        imagesHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No images uploaded yet</p>';
       } else {
-        html += '<div style="display:flex;flex-wrap:wrap;gap:12px;">';
-        data.images.forEach(img => {
-          html += `
-            <div style="position:relative;border:2px solid #e2e8f0;border-radius:8px;overflow:hidden;">
-              <img src="${img.url}" style="width:150px;height:110px;object-fit:cover;display:block;">
-              <div style="padding:4px 8px;font-size:11px;color:#64748b;background:#f8fafc;">
-                ${escapeHtml(img.filename || 'image')} (${(img.size / 1024).toFixed(0)}KB)
-              </div>
-              <button onclick="deleteImage('${img.imageId}','${propertyId}')" style="position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:12px;">✕</button>
-            </div>`;
-        });
-        html += '</div>';
+        imagesHTML = '<div class="image-grid">' + data.images.map(img => `
+          <div class="image-card">
+            <img src="${img.url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'">
+            <div class="image-card-info">${escapeHtml(img.filename || 'image')} &middot; ${(img.size / 1024).toFixed(0)}KB</div>
+            <button class="image-card-delete" onclick="deleteImage('${img.imageId}','${propertyId}')" title="Remove">&times;</button>
+          </div>
+        `).join('') + '</div>';
       }
 
-      html += `
-        <div style="margin-top:16px;">
-          <label style="font-size:13px;font-weight:600;">Add more images:</label>
-          <input type="file" accept="image/*" multiple onchange="uploadMoreImages('${propertyId}', this.files)" style="margin-top:4px;">
+      content.innerHTML = `
+        <div class="modal-header">
+          <h3>Images &mdash; ${escapeHtml(propertyId)}</h3>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('imageModal').classList.add('hidden')">&times; Close</button>
         </div>
-        <button onclick="document.getElementById('imageModal').classList.add('hidden')" style="margin-top:16px;background:#64748b;color:#fff;border:none;padding:8px 20px;border-radius:6px;cursor:pointer;">Close</button>
-      </div>`;
-
-      let modal = document.getElementById('imageModal');
-      if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'imageModal';
-        modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;';
-        document.body.appendChild(modal);
-      }
+        <div class="modal-body">
+          ${imagesHTML}
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+            <label class="form-label">Add images</label>
+            <input type="file" accept="image/*" multiple onchange="uploadMoreImages('${propertyId}', this.files)" class="form-file" style="margin-top:4px;">
+          </div>
+        </div>
+      `;
       modal.classList.remove('hidden');
-      modal.innerHTML = `<div style="background:#fff;border-radius:12px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;">${html}</div>`;
     } catch (err) {
       alert('Failed to load images: ' + err.message);
     }
@@ -1115,21 +1340,19 @@
     if (!confirm('Delete this image?')) return;
     try {
       await fetch(`${API}/images/${imageId}`, { method: 'DELETE' });
-      openImageManager(propertyId); // refresh modal
-    } catch (err) {
-      alert('Failed to delete image: ' + err.message);
-    }
+      openImageManager(propertyId);
+    } catch (err) { alert('Failed to delete: ' + err.message); }
   }
 
   async function uploadMoreImages(propertyId, files) {
     if (!files || files.length === 0) return;
     await uploadPropertyImages(propertyId, files);
-    openImageManager(propertyId); // refresh modal
-    refreshProperties(); // refresh table thumbnails
+    openImageManager(propertyId);
+    refreshProperties();
   }
 
   async function deleteProperty(propertyId) {
-    if (!confirm('Are you sure you want to delete this property?')) return;
+    if (!confirm('Delete this property? This action cannot be undone.')) return;
     try {
       const res = await fetch(`${API}/properties/${propertyId}`, { method: 'DELETE' });
       if (!res.ok) {
@@ -1156,33 +1379,28 @@
       renderCRMStats(data);
       renderCRMConfig(data);
       renderCRMLog(data.recentLog || []);
-    } catch (err) {
-      console.error('Failed to load CRM data:', err);
-    }
+    } catch (err) { console.error('Failed to load CRM data:', err); }
   }
 
   function renderCRMStats(stats) {
-    const grid = document.getElementById('crmStatsGrid');
-    grid.innerHTML = `
-      <div class="stat-card ${stats.enabled ? 'green' : 'red'}">
+    document.getElementById('crmStatsGrid').innerHTML = `
+      <div class="stat-card ${stats.enabled ? 'accent' : ''}">
         <div class="stat-label">CRM Status</div>
-        <div class="stat-value">${stats.enabled ? 'Connected' : 'Not Configured'}</div>
-        <div class="stat-sub">${stats.orgUrl || 'Set DYNAMICS_* env vars to enable'}</div>
+        <div class="stat-value" style="font-size:18px;">${stats.enabled ? 'Connected' : 'Not Configured'}</div>
+        <div class="stat-sub">${stats.orgUrl || 'Set DYNAMICS_* env vars'}</div>
       </div>
-      <div class="stat-card blue">
+      <div class="stat-card">
         <div class="stat-label">Successful Syncs</div>
         <div class="stat-value">${stats.totalSyncs}</div>
-        <div class="stat-sub">Contacts, leads, appointments</div>
       </div>
-      <div class="stat-card red">
+      <div class="stat-card">
         <div class="stat-label">Sync Errors</div>
         <div class="stat-value">${stats.totalErrors}</div>
         <div class="stat-sub">${stats.queueSize} in retry queue</div>
       </div>
-      <div class="stat-card orange">
+      <div class="stat-card">
         <div class="stat-label">Last Sync</div>
-        <div class="stat-value" style="font-size:16px;">${stats.lastSync ? new Date(stats.lastSync).toLocaleString() : 'Never'}</div>
-        <div class="stat-sub">Most recent sync event</div>
+        <div class="stat-value" style="font-size:14px;">${stats.lastSync ? new Date(stats.lastSync).toLocaleString() : 'Never'}</div>
       </div>
     `;
   }
@@ -1191,24 +1409,23 @@
     const el = document.getElementById('crmConfig');
     if (stats.enabled) {
       el.innerHTML = `
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div><strong>Organization URL:</strong><br><span style="color:#25D366;">${stats.orgUrl}</span></div>
-          <div><strong>Status:</strong><br><span style="color:#25D366;">✅ Connected & Syncing</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div><span style="color:var(--text-muted);font-size:12px;">Organization URL</span><br><strong style="font-size:13px;">${stats.orgUrl}</strong></div>
+          <div><span style="color:var(--text-muted);font-size:12px;">Status</span><br><span class="badge badge-success">Active</span></div>
         </div>
-        <p style="margin-top:16px;color:#64748b;font-size:13px;">Leads scoring WARM (50+) or above are automatically synced to Dynamics 365 as Contacts + Leads.<br>Viewing appointments are synced as Appointments. Failed syncs are retried up to 3 times.</p>
+        <p style="margin-top:16px;color:var(--text-muted);font-size:12px;">Leads scoring WARM (50+) or above are automatically synced to Dynamics 365. Viewing appointments are synced as Appointments.</p>
       `;
     } else {
       el.innerHTML = `
-        <div style="background:#fef3c7; border:1px solid #f59e0b; border-radius:8px; padding:16px;">
-          <strong>⚠️ CRM Integration Not Configured</strong>
-          <p style="margin-top:8px; color:#92400e;">To connect Microsoft Dynamics 365, set these environment variables on Render:</p>
-          <ul style="margin-top:8px; color:#92400e; list-style:disc; padding-left:20px;">
-            <li><code>DYNAMICS_ORG_URL</code> — e.g. https://devtraco.crm.dynamics.com</li>
-            <li><code>DYNAMICS_TENANT_ID</code> — Your Azure AD tenant ID</li>
-            <li><code>DYNAMICS_CLIENT_ID</code> — App registration client ID</li>
-            <li><code>DYNAMICS_CLIENT_SECRET</code> — App registration secret</li>
+        <div style="background:var(--warning-light);border:1px solid #fbbf24;border-radius:6px;padding:16px;">
+          <strong style="font-size:13px;">CRM Integration Not Configured</strong>
+          <p style="margin-top:8px;color:#92400e;font-size:12px;">To connect Microsoft Dynamics 365, set these environment variables:</p>
+          <ul style="margin-top:8px;color:#92400e;font-size:12px;list-style:disc;padding-left:20px;">
+            <li><code>DYNAMICS_ORG_URL</code></li>
+            <li><code>DYNAMICS_TENANT_ID</code></li>
+            <li><code>DYNAMICS_CLIENT_ID</code></li>
+            <li><code>DYNAMICS_CLIENT_SECRET</code></li>
           </ul>
-          <p style="margin-top:12px; color:#92400e;">Once set, the bot will auto-sync WARM/HOT leads and viewings to Dynamics 365.</p>
         </div>
       `;
     }
@@ -1217,23 +1434,18 @@
   function renderCRMLog(log) {
     const tbody = document.getElementById('crmLogTable');
     if (log.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:40px;">No sync events yet. Events will appear here once leads are captured.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:40px;">No sync events yet</td></tr>';
       return;
     }
-    tbody.innerHTML = log.map(entry => {
-      const statusClass = entry.status === 'ERROR' ? 'tier-HOT' :
-                          entry.status === 'CREATED' || entry.status === 'SUCCESS' ? 'tier-COLD' :
-                          'tier-WARM';
-      return `
-        <tr>
-          <td style="white-space:nowrap;">${new Date(entry.timestamp).toLocaleString()}</td>
-          <td><strong>${entry.entity}</strong></td>
-          <td><span class="tier-badge ${statusClass}">${entry.status}</span></td>
-          <td>${entry.message}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${JSON.stringify(entry.details)}</td>
-        </tr>
-      `;
-    }).join('');
+    tbody.innerHTML = log.map(entry => `
+      <tr>
+        <td style="white-space:nowrap;font-size:12px;">${new Date(entry.timestamp).toLocaleString()}</td>
+        <td><strong>${entry.entity}</strong></td>
+        <td><span class="badge ${entry.status === 'ERROR' ? 'badge-danger' : 'badge-success'}">${entry.status}</span></td>
+        <td>${entry.message}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;">${JSON.stringify(entry.details)}</td>
+      </tr>
+    `).join('');
   }
 
   // ========== IMAGE FILE PREVIEW ==========
@@ -1245,11 +1457,16 @@
       reader.onload = (e) => {
         const img = document.createElement('img');
         img.src = e.target.result;
-        img.style.cssText = 'width:80px;height:60px;object-fit:cover;border-radius:6px;border:2px solid #25D366;';
+        img.style.cssText = 'width:64px;height:48px;object-fit:cover;border-radius:4px;border:1px solid var(--border);';
         preview.appendChild(img);
       };
       reader.readAsDataURL(file);
     }
+  });
+
+  // Close modal on overlay click
+  document.getElementById('imageModal')?.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.add('hidden');
   });
 </script>
 
