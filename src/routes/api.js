@@ -17,19 +17,34 @@ import {
 import { getAllViewings, getPendingViewingCount, updateViewingStatus } from "../services/viewingScheduler.js";
 import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
 import Image from "../db/models/Image.js";
+import Video from "../db/models/Video.js";
 import { isDBConnected } from "../db/connection.js";
 
 const router = express.Router();
 
 // Multer config — store in memory (then save to MongoDB)
+// Multer config for images (5 MB max)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB max
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("image/")) {
       cb(null, true);
     } else {
       cb(new Error("Only image files are allowed"), false);
+    }
+  },
+});
+
+// Multer config for videos (50 MB max)
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("video/")) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video files are allowed"), false);
     }
   },
 });
@@ -187,9 +202,10 @@ router.delete("/properties/:id", async (req, res) => {
     if (!result) {
       return res.status(404).json({ error: "Property not found" });
     }
-    // Also remove all associated images from DB
-    const deleted = await Image.deleteMany({ propertyId: req.params.id });
-    console.log(`[API] Deleted property ${req.params.id} + ${deleted.deletedCount} images`);
+    // Also remove all associated images and videos from DB
+    const deletedImages = await Image.deleteMany({ propertyId: req.params.id });
+    const deletedVideos = await Video.deleteMany({ propertyId: req.params.id });
+    console.log(`[API] Deleted property ${req.params.id} + ${deletedImages.deletedCount} images + ${deletedVideos.deletedCount} videos`);
     res.json({ success: true, message: "Property deleted" });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -373,6 +389,129 @@ router.delete("/images/:imageId", async (req, res) => {
     await updateProperty(image.propertyId, { images: imageUrls });
 
     res.json({ success: true, message: "Image deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ========== VIDEO UPLOAD & SERVING ==========
+
+/**
+ * POST /api/properties/:id/videos — Upload videos for a property (max 3 at once)
+ */
+router.post("/properties/:id/videos", videoUpload.array("videos", 3), async (req, res) => {
+  if (!isDBConnected()) {
+    return res.status(503).json({ error: "Database not connected" });
+  }
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).json({ error: "No video files provided" });
+  }
+
+  try {
+    const propertyId = req.params.id;
+    const property = await getPropertyById(propertyId);
+    if (!property) {
+      return res.status(404).json({ error: "Property not found" });
+    }
+
+    const existingCount = await Video.countDocuments({ propertyId });
+    const savedVideos = [];
+
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      const videoId = uuidv4();
+      const video = new Video({
+        videoId,
+        propertyId,
+        filename: file.originalname,
+        contentType: file.mimetype,
+        data: file.buffer,
+        size: file.size,
+        caption: req.body.caption || "",
+        order: existingCount + i,
+      });
+      await video.save();
+      savedVideos.push({
+        videoId,
+        filename: file.originalname,
+        size: file.size,
+        url: `/api/videos/${videoId}`,
+      });
+    }
+
+    // Update property's videos array
+    const allVideos = await Video.find({ propertyId }).sort({ order: 1 }).select("videoId");
+    const videoUrls = allVideos.map((v) => `/api/videos/${v.videoId}`);
+    await updateProperty(propertyId, { videos: videoUrls });
+    console.log(`[API] Updated property ${propertyId} videos: ${videoUrls.length} URLs`);
+
+    res.status(201).json({ uploaded: savedVideos.length, videos: savedVideos });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/videos/:videoId — Serve a video (streaming support)
+ */
+router.get("/videos/:videoId", async (req, res) => {
+  try {
+    const video = await Video.findOne({ videoId: req.params.videoId });
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+    res.set("Content-Type", video.contentType);
+    res.set("Content-Length", video.size);
+    res.set("Cache-Control", "public, max-age=86400");
+    res.set("Accept-Ranges", "bytes");
+    res.send(video.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * GET /api/properties/:id/videos — List videos for a property
+ */
+router.get("/properties/:id/videos", async (req, res) => {
+  try {
+    const videos = await Video.find({ propertyId: req.params.id })
+      .sort({ order: 1 })
+      .select("videoId filename contentType size caption order createdAt");
+    res.json({
+      propertyId: req.params.id,
+      count: videos.length,
+      videos: videos.map((v) => ({
+        videoId: v.videoId,
+        filename: v.filename,
+        size: v.size,
+        caption: v.caption,
+        url: `/api/videos/${v.videoId}`,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * DELETE /api/videos/:videoId — Delete a single video
+ */
+router.delete("/videos/:videoId", async (req, res) => {
+  if (!isDBConnected()) {
+    return res.status(503).json({ error: "Database not connected" });
+  }
+  try {
+    const video = await Video.findOneAndDelete({ videoId: req.params.videoId });
+    if (!video) {
+      return res.status(404).json({ error: "Video not found" });
+    }
+    // Update property's videos array
+    const remaining = await Video.find({ propertyId: video.propertyId }).sort({ order: 1 }).select("videoId");
+    const videoUrls = remaining.map((v) => `/api/videos/${v.videoId}`);
+    await updateProperty(video.propertyId, { videos: videoUrls });
+
+    res.json({ success: true, message: "Video deleted" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

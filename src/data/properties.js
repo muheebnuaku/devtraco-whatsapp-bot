@@ -223,6 +223,7 @@ function docToProperty(doc) {
     amenities: doc.amenities || [],
     status: doc.status || "Now Selling",
     images: doc.images || [],
+    videos: doc.videos || [],
     projectUrl: doc.projectUrl || "",
     description: doc.description || "",
     active: doc.active !== false,

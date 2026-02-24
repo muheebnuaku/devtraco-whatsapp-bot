@@ -11,6 +11,7 @@ const propertySchema = new mongoose.Schema({
   amenities:   [String],
   status:      { type: String, default: "Now Selling" },
   images:      [String],
+  videos:      [String],
   projectUrl:  String,
   description: String,
   active:      { type: Boolean, default: true },  // soft-delete toggle

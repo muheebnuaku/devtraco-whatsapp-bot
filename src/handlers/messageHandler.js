@@ -152,8 +152,30 @@ export async function handleIncomingMessage(messagePayload) {
   console.log(`[Chat] ${from} → ${userText}`);
   console.log(`[Chat] Bot → ${aiResult.text.slice(0, 150)}...`);
 
+  // If AI referenced a specific property, send its image first
+  if (aiResult.showProperty) {
+    await sendPropertyImages(from, aiResult.showProperty);
+  }
+
   // Send the response
   await sendTextMessage(from, aiResult.text);
+
+  // If AI referenced a specific property, send action buttons after the text
+  if (aiResult.showProperty) {
+    const prop = await getPropertyById(aiResult.showProperty);
+    if (prop) {
+      await sendButtonMessage(
+        from,
+        `Interested in *${prop.name}*?`,
+        [
+          { id: `schedule_${prop.id}`, title: "Schedule Visit" },
+          { id: "view_properties", title: "More Properties" },
+          { id: "speak_agent", title: "Speak to Agent" },
+        ],
+        prop.name
+      );
+    }
+  }
 
   // Handle viewing schedule from AI
   if (aiResult.scheduleViewing) {
@@ -210,29 +232,41 @@ async function sendConsentRequest(to) {
 }
 
 /**
- * Send detailed property view with image
+ * Send property images for a given propertyId (used by both AI pipeline and interactive list).
+ */
+async function sendPropertyImages(to, propertyId) {
+  const property = await getPropertyById(propertyId);
+  if (!property) return;
+
+  if (property.images && property.images.length > 0) {
+    try {
+      let imageUrl = property.images[0];
+      if (imageUrl.startsWith("/")) {
+        imageUrl = `${BASE_URL}${imageUrl}`;
+      }
+      console.log(`[Property] Sending image for ${propertyId}: ${imageUrl}`);
+      await sendImageMessage(
+        to,
+        imageUrl,
+        `${property.name} — ${property.location}`
+      );
+    } catch (err) {
+      console.warn(`[Property] Failed to send image for ${propertyId}:`, err.message);
+    }
+  } else {
+    console.log(`[Property] No images available for ${propertyId}`);
+  }
+}
+
+/**
+ * Send detailed property view with image (triggered by interactive list selection)
  */
 async function sendPropertyDetail(to, propertyId) {
   const property = await getPropertyById(propertyId);
   if (!property) return;
 
-  // Send image if available
-  if (property.images && property.images.length > 0) {
-    try {
-      // Resolve relative paths (uploaded images) to absolute URLs
-      let imageUrl = property.images[0];
-      if (imageUrl.startsWith("/")) {
-        imageUrl = `${BASE_URL}${imageUrl}`;
-      }
-      await sendImageMessage(
-        to,
-        imageUrl,
-        `🏠 ${property.name} — ${property.location}`
-      );
-    } catch (err) {
-      console.warn(`[Property] Failed to send image for ${propertyId}:`, err.message);
-    }
-  }
+  // Send image
+  await sendPropertyImages(to, propertyId);
 
   // Send property details
   const card = formatPropertyCard(property);
@@ -243,9 +277,9 @@ async function sendPropertyDetail(to, propertyId) {
     to,
     `Interested in *${property.name}*?`,
     [
-      { id: `schedule_${property.id}`, title: "📅 Schedule Visit" },
-      { id: "view_properties", title: "🏠 More Properties" },
-      { id: "speak_agent", title: "👤 Speak to Agent" },
+      { id: `schedule_${property.id}`, title: "Schedule Visit" },
+      { id: "view_properties", title: "More Properties" },
+      { id: "speak_agent", title: "Speak to Agent" },
     ],
     property.name
   );

@@ -763,6 +763,11 @@
             <div id="pf_imagePreview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
           </div>
           <div class="form-group full">
+            <label class="form-label">Property Videos (max 3, up to 50MB each)</label>
+            <input type="file" id="pf_videos" accept="video/*" multiple class="form-file">
+            <div id="pf_videoPreview" style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;"></div>
+          </div>
+          <div class="form-group full">
             <label class="form-label">Description</label>
             <textarea id="pf_description" rows="2" placeholder="Brief property description..." class="form-textarea"></textarea>
           </div>
@@ -840,7 +845,7 @@
 
 </div>
 
-<!-- Image Manager Modal -->
+<!-- Media Manager Modal (Images + Videos) -->
 <div id="imageModal" class="modal-overlay hidden">
   <div class="modal-content" id="imageModalContent"></div>
 </div>
@@ -1177,7 +1182,7 @@
           <td><span class="badge ${p.status === 'Now Selling' ? 'badge-success' : p.status === 'Coming Soon' ? 'badge-warning' : 'badge-danger'}">${escapeHtml(p.status)}</span></td>
           <td>${p.projectUrl ? `<a href="${p.projectUrl}" target="_blank" style="color:var(--brand);text-decoration:none;font-size:12px;">Visit &rarr;</a>` : '\u2014'}</td>
           <td style="white-space:nowrap;">
-            <button class="btn btn-ghost btn-icon btn-sm" onclick="openImageManager('${p.propertyId || p.id}')" title="Manage images">
+            <button class="btn btn-ghost btn-icon btn-sm" onclick="openMediaManager('${p.propertyId || p.id}')" title="Manage media">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
             </button>
             <button class="btn btn-ghost btn-icon btn-sm" onclick='editProperty(${JSON.stringify(p).replace(/'/g, "&#39;")})' title="Edit property">
@@ -1200,6 +1205,7 @@
     document.getElementById('propertySubmitBtn').textContent = 'Add Property';
     document.getElementById('cancelEditBtn').classList.add('hidden');
     document.getElementById('pf_imagePreview').innerHTML = '';
+    document.getElementById('pf_videoPreview').innerHTML = '';
   }
 
   function editProperty(p) {
@@ -1236,6 +1242,7 @@
     const amenitiesRaw = document.getElementById('pf_amenities').value;
     const bedroomsRaw = document.getElementById('pf_bedrooms').value;
     const imageFiles = document.getElementById('pf_images').files;
+    const videoFiles = document.getElementById('pf_videos').files;
 
     const body = {
       name: document.getElementById('pf_name').value,
@@ -1277,6 +1284,10 @@
         await uploadPropertyImages(propId, imageFiles);
       }
 
+      if (videoFiles.length > 0 && propId) {
+        await uploadPropertyVideos(propId, videoFiles);
+      }
+
       resetPropertyForm();
       refreshProperties();
     } catch (err) {
@@ -1298,17 +1309,20 @@
     }
   }
 
-  async function openImageManager(propertyId) {
+  async function openMediaManager(propertyId) {
     try {
-      const data = await fetch(`${API}/properties/${propertyId}/images`).then(r => r.json());
+      const [imgData, vidData] = await Promise.all([
+        fetch(`${API}/properties/${propertyId}/images`).then(r => r.json()),
+        fetch(`${API}/properties/${propertyId}/videos`).then(r => r.json()),
+      ]);
       const modal = document.getElementById('imageModal');
       const content = document.getElementById('imageModalContent');
 
       let imagesHTML = '';
-      if (data.images.length === 0) {
-        imagesHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">No images uploaded yet</p>';
+      if (imgData.images.length === 0) {
+        imagesHTML = '<p style="color:var(--text-muted);text-align:center;padding:12px;">No images uploaded yet</p>';
       } else {
-        imagesHTML = '<div class="image-grid">' + data.images.map(img => `
+        imagesHTML = '<div class="image-grid">' + imgData.images.map(img => `
           <div class="image-card">
             <img src="${img.url}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22/>'">
             <div class="image-card-info">${escapeHtml(img.filename || 'image')} &middot; ${(img.size / 1024).toFixed(0)}KB</div>
@@ -1317,22 +1331,43 @@
         `).join('') + '</div>';
       }
 
+      let videosHTML = '';
+      if (vidData.videos.length === 0) {
+        videosHTML = '<p style="color:var(--text-muted);text-align:center;padding:12px;">No videos uploaded yet</p>';
+      } else {
+        videosHTML = '<div class="image-grid">' + vidData.videos.map(v => `
+          <div class="image-card">
+            <video src="${v.url}" style="width:140px;height:100px;object-fit:cover;display:block;" muted preload="metadata"></video>
+            <div class="image-card-info">${escapeHtml(v.filename || 'video')} &middot; ${(v.size / 1024 / 1024).toFixed(1)}MB</div>
+            <button class="image-card-delete" onclick="deleteVideo('${v.videoId}','${propertyId}')" title="Remove">&times;</button>
+          </div>
+        `).join('') + '</div>';
+      }
+
       content.innerHTML = `
         <div class="modal-header">
-          <h3>Images &mdash; ${escapeHtml(propertyId)}</h3>
+          <h3>Media &mdash; ${escapeHtml(propertyId)}</h3>
           <button class="btn btn-ghost btn-sm" onclick="document.getElementById('imageModal').classList.add('hidden')">&times; Close</button>
         </div>
         <div class="modal-body">
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:8px;">Images</h4>
           ${imagesHTML}
-          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-            <label class="form-label">Add images</label>
-            <input type="file" accept="image/*" multiple onchange="uploadMoreImages('${propertyId}', this.files)" class="form-file" style="margin-top:4px;">
+          <div style="margin-top:12px;">
+            <input type="file" accept="image/*" multiple onchange="uploadMoreImages('${propertyId}', this.files)" class="form-file">
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
+
+          <h4 style="font-size:13px;font-weight:600;margin-bottom:8px;">Videos</h4>
+          ${videosHTML}
+          <div style="margin-top:12px;">
+            <input type="file" accept="video/*" multiple onchange="uploadMoreVideos('${propertyId}', this.files)" class="form-file">
           </div>
         </div>
       `;
       modal.classList.remove('hidden');
     } catch (err) {
-      alert('Failed to load images: ' + err.message);
+      alert('Failed to load media: ' + err.message);
     }
   }
 
@@ -1340,14 +1375,14 @@
     if (!confirm('Delete this image?')) return;
     try {
       await fetch(`${API}/images/${imageId}`, { method: 'DELETE' });
-      openImageManager(propertyId);
+      openMediaManager(propertyId);
     } catch (err) { alert('Failed to delete: ' + err.message); }
   }
 
   async function uploadMoreImages(propertyId, files) {
     if (!files || files.length === 0) return;
     await uploadPropertyImages(propertyId, files);
-    openImageManager(propertyId);
+    openMediaManager(propertyId);
     refreshProperties();
   }
 
@@ -1363,6 +1398,36 @@
     } catch (err) {
       alert('Error: ' + err.message);
     }
+  }
+
+  // ========== VIDEO HELPERS ==========
+  async function uploadPropertyVideos(propertyId, files) {
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) formData.append('videos', files[i]);
+    try {
+      const res = await fetch(`${API}/properties/${propertyId}/videos`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Property saved but video upload failed: ' + err.error);
+      }
+    } catch (err) {
+      alert('Property saved but video upload failed: ' + err.message);
+    }
+  }
+
+  async function deleteVideo(videoId, propertyId) {
+    if (!confirm('Delete this video?')) return;
+    try {
+      await fetch(`${API}/videos/${videoId}`, { method: 'DELETE' });
+      openMediaManager(propertyId);
+    } catch (err) { alert('Failed to delete: ' + err.message); }
+  }
+
+  async function uploadMoreVideos(propertyId, files) {
+    if (!files || files.length === 0) return;
+    await uploadPropertyVideos(propertyId, files);
+    openMediaManager(propertyId);
+    refreshProperties();
   }
 
   // ========== UTILS ==========
@@ -1461,6 +1526,18 @@
         preview.appendChild(img);
       };
       reader.readAsDataURL(file);
+    }
+  });
+
+  // ========== VIDEO FILE PREVIEW ==========
+  document.getElementById('pf_videos')?.addEventListener('change', function() {
+    const preview = document.getElementById('pf_videoPreview');
+    preview.innerHTML = '';
+    for (const file of this.files) {
+      const el = document.createElement('div');
+      el.style.cssText = 'padding:6px 10px;background:#f3f4f6;border-radius:4px;font-size:12px;color:var(--text-secondary);';
+      el.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+      preview.appendChild(el);
     }
   });
 

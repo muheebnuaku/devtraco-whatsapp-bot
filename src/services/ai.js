@@ -52,6 +52,14 @@ ESCALATION:
 - If the customer requests a human agent or the question requires human help, include:
   [ESCALATE]reason here[/ESCALATE]
 
+SHOWING PROPERTY IMAGES:
+- When you describe or recommend a SPECIFIC property, ALWAYS include this tag at the END of your response:
+  [SHOW_PROPERTY]property-id-here[/SHOW_PROPERTY]
+- This will automatically send the property image to the customer via WhatsApp.
+- Only include ONE property ID per message. Use these property IDs: ${propertyIds}
+- This tag will be stripped before sending to the user — the image is sent separately.
+- ALWAYS include this tag when discussing a specific property so the customer can see it.
+
 VIEWING SCHEDULING:
 - When a customer wants to schedule a viewing/visit, collect: which property, preferred date, preferred time, and their name.
 - Once you have enough info (at least the property and date), include at the END of your response:
@@ -147,5 +155,13 @@ function parseAIResponse(raw) {
     }
   }
 
-  return { text, leadData, escalate, scheduleViewing };
+  // Extract show property (send image)
+  let showProperty = null;
+  const showMatch = raw.match(/\[SHOW_PROPERTY\](.*?)\[\/SHOW_PROPERTY\]/s);
+  if (showMatch) {
+    showProperty = showMatch[1].trim();
+    text = text.replace(showMatch[0], "").trim();
+  }
+
+  return { text, leadData, escalate, scheduleViewing, showProperty };
 }
