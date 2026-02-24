@@ -21,6 +21,16 @@ export async function sendImageMessage(to, imageUrl, caption = "") {
 }
 
 /**
+ * Send a video message
+ */
+export async function sendVideoMessage(to, videoUrl, caption = "") {
+  return sendMessage(to, {
+    type: "video",
+    video: { link: videoUrl, caption },
+  });
+}
+
+/**
  * Send a document message
  */
 export async function sendDocumentMessage(to, documentUrl, filename, caption = "") {

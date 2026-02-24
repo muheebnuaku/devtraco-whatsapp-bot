@@ -6,6 +6,7 @@ import {
   sendButtonMessage,
   sendListMessage,
   sendImageMessage,
+  sendVideoMessage,
   markAsRead,
 } from "../services/whatsapp.js";
 import { getAllProperties, getPropertyById, formatPropertyCard } from "../data/properties.js";
@@ -270,10 +271,10 @@ async function detectPropertyInText(text) {
  * These are incorrect — the system CAN send images via the SHOW_PROPERTY mechanism.
  */
 function cleanImageRefusals(text) {
-  // Remove sentences containing "can't show images", "can't display images", etc.
+  // Remove sentences where AI says it cannot show/display images or videos
   const patterns = [
-    /[^.!?\n]*(?:can'?t|cannot|unable to)\s+(?:show|display|send|share)\s+images[^.!?\n]*[.!?]?\s*/gi,
-    /[^.!?\n]*(?:can'?t|cannot|unable to)\s+(?:show|display|send|share)\s+(?:photos?|pictures?|visuals?)\s+(?:directly|here|in this chat)[^.!?\n]*[.!?]?\s*/gi,
+    /[^.!?\n]*(?:can'?t|cannot|unable to|don'?t have the ability to)\s+(?:show|display|send|share)\s+(?:images|videos?|photos?|pictures?|visuals?)[^.!?\n]*[.!?]?\s*/gi,
+    /[^.!?\n]*(?:can'?t|cannot|unable to|don'?t have the ability to)\s+(?:show|display|send|share)\s+(?:images|videos?|photos?|pictures?|visuals?)\s+(?:directly|here|in this chat)[^.!?\n]*[.!?]?\s*/gi,
   ];
   let cleaned = text;
   for (const pat of patterns) {
@@ -283,29 +284,48 @@ function cleanImageRefusals(text) {
 }
 
 /**
- * Send property images for a given propertyId (used by both AI pipeline and interactive list).
+ * Send ALL property images and videos for a given propertyId.
  */
 async function sendPropertyImages(to, propertyId) {
   const property = await getPropertyById(propertyId);
   if (!property) return;
 
+  // Send all images (not just the first one)
   if (property.images && property.images.length > 0) {
-    try {
-      let imageUrl = property.images[0];
-      if (imageUrl.startsWith("/")) {
-        imageUrl = `${BASE_URL}${imageUrl}`;
+    for (let i = 0; i < property.images.length; i++) {
+      try {
+        let imageUrl = property.images[i];
+        if (imageUrl.startsWith("/")) {
+          imageUrl = `${BASE_URL}${imageUrl}`;
+        }
+        const caption = i === 0
+          ? `${property.name} — ${property.location} (${i + 1}/${property.images.length})`
+          : `${property.name} (${i + 1}/${property.images.length})`;
+        console.log(`[Property] Sending image ${i + 1}/${property.images.length} for ${propertyId}`);
+        await sendImageMessage(to, imageUrl, caption);
+      } catch (err) {
+        console.warn(`[Property] Failed to send image ${i + 1} for ${propertyId}:`, err.message);
       }
-      console.log(`[Property] Sending image for ${propertyId}: ${imageUrl}`);
-      await sendImageMessage(
-        to,
-        imageUrl,
-        `${property.name} — ${property.location}`
-      );
-    } catch (err) {
-      console.warn(`[Property] Failed to send image for ${propertyId}:`, err.message);
     }
   } else {
     console.log(`[Property] No images available for ${propertyId}`);
+  }
+
+  // Send all videos
+  if (property.videos && property.videos.length > 0) {
+    for (let i = 0; i < property.videos.length; i++) {
+      try {
+        let videoUrl = property.videos[i];
+        if (videoUrl.startsWith("/")) {
+          videoUrl = `${BASE_URL}${videoUrl}`;
+        }
+        const caption = `${property.name} — Video ${i + 1}/${property.videos.length}`;
+        console.log(`[Property] Sending video ${i + 1}/${property.videos.length} for ${propertyId}`);
+        await sendVideoMessage(to, videoUrl, caption);
+      } catch (err) {
+        console.warn(`[Property] Failed to send video ${i + 1} for ${propertyId}:`, err.message);
+      }
+    }
   }
 }
 
