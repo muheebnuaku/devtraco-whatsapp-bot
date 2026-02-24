@@ -144,9 +144,30 @@ export async function handleIncomingMessage(messagePayload) {
   await addMessage(from, "user", userText);
   const aiResult = await generateAIResponseFull(from, session);
 
-  // Handle lead data capture
+  // Handle lead data capture from AI tags
   if (aiResult.leadData) {
     await captureLead(from, aiResult.leadData);
+  }
+
+  // Fallback lead extraction: scan user text + AI response for lead info
+  // when the AI didn't include a [LEAD_DATA] tag
+  if (!aiResult.leadData) {
+    const fallbackLead = extractLeadFromConversation(userText, aiResult.text, session);
+    if (fallbackLead && Object.keys(fallbackLead).length > 0) {
+      await captureLead(from, fallbackLead);
+      console.log(`[Fallback] Extracted lead data from conversation:`, JSON.stringify(fallbackLead));
+    }
+  }
+
+  // Also capture lead data from viewing schedule (name is always provided)
+  if (aiResult.scheduleViewing) {
+    const viewingLead = {};
+    if (aiResult.scheduleViewing.name) viewingLead.name = aiResult.scheduleViewing.name;
+    if (aiResult.scheduleViewing.propertyName) viewingLead.propertyInterest = aiResult.scheduleViewing.propertyName;
+    if (Object.keys(viewingLead).length > 0) {
+      await captureLead(from, viewingLead);
+      console.log(`[Lead] Captured from viewing schedule:`, JSON.stringify(viewingLead));
+    }
   }
 
   // Fallback: if AI forgot the SHOW_PROPERTY tag, detect property name in response
@@ -246,6 +267,65 @@ async function sendConsentRequest(to) {
     "Data Privacy",
     "We respect your privacy"
   );
+}
+
+/**
+ * Fallback lead extraction: scan user message for budget, location, name patterns.
+ * Only extracts data that isn't already captured in the session.
+ */
+function extractLeadFromConversation(userText, aiText, session) {
+  const lead = {};
+  const existing = session.leadData || {};
+  const text = userText.toLowerCase();
+
+  // Budget: match $XXX,XXX or XXX,XXX$ or XXXK or XXX dollars etc.
+  if (!existing.budget) {
+    const budgetMatch = userText.match(/\$\s?[\d,]+(?:\.\d+)?(?:k|m)?|\b[\d,]+(?:\.\d+)?\s*(?:dollars?|usd|\$)/i);
+    if (budgetMatch) {
+      lead.budget = budgetMatch[0].trim();
+    }
+  }
+
+  // Preferred location: match known Ghana locations
+  if (!existing.preferredLocation) {
+    const locations = [
+      "east legon", "cantonments", "roman ridge", "airport residential",
+      "ridge", "labone", "osu", "dzorwulu", "north ridge", "adjiringanor",
+      "tse addo", "la", "accra", "tema", "kumasi", "takoradi", "spintex",
+      "trasacco", "au village", "community 25", "sakumono", "ashongman",
+    ];
+    for (const loc of locations) {
+      if (text.includes(loc)) {
+        lead.preferredLocation = loc.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+        break;
+      }
+    }
+  }
+
+  // Property interest: check if AI response mentions a specific property by name
+  if (!existing.propertyInterest) {
+    // Look for property names in the AI text context (e.g., "You've chosen Acasia Apartments")
+    const propertyPatterns = [
+      /(?:chosen|selected|interested in|recommend)\s+\*?([A-Z][A-Za-z\s']+?)(?:\*|!|\.|,|\n)/,
+    ];
+    for (const pat of propertyPatterns) {
+      const match = aiText.match(pat);
+      if (match && match[1].trim().length > 3) {
+        lead.propertyInterest = match[1].trim();
+        break;
+      }
+    }
+  }
+
+  // Email
+  if (!existing.email) {
+    const emailMatch = userText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (emailMatch) {
+      lead.email = emailMatch[0];
+    }
+  }
+
+  return lead;
 }
 
 /**
