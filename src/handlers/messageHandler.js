@@ -82,12 +82,33 @@ export async function handleIncomingMessage(messagePayload) {
     // Property detail view from list selection
     if (interactiveId.startsWith("property_")) {
       const propertyId = interactiveId.replace("property_", "");
-      await sendPropertyDetail(from, propertyId);
-      // Also feed it to the AI so conversation stays contextual
+      const property = await getPropertyById(propertyId);
+      if (!property) return;
+
+      // 1. Send property card (emoji-formatted details)
+      const card = formatPropertyCard(property);
+      await sendTextMessage(from, card);
+
+      // 2. Send ALL images
+      await sendPropertyImages(from, propertyId);
+
+      // 3. Generate and send AI description
       await addMessage(from, "user", `Tell me about ${interactive?.list_reply?.title || propertyId}`);
       const aiResult = await generateAIResponseFull(from, session);
       if (aiResult.leadData) await captureLead(from, aiResult.leadData);
       await sendTextMessage(from, aiResult.text);
+
+      // 4. Send "What would you like to do?" action buttons
+      await sendButtonMessage(
+        from,
+        `What would you like to do?`,
+        [
+          { id: `schedule_${property.id}`, title: "Schedule Visit" },
+          { id: "view_properties", title: "More Properties" },
+          { id: "speak_agent", title: "Speak to Agent" },
+        ],
+        property.name
+      );
       return;
     }
 
@@ -292,6 +313,12 @@ export async function handleIncomingMessage(messagePayload) {
   const suppressPropertyUI = skipMedia || isScheduling || recentlyShown;
 
   if (aiResult.showProperty && !suppressPropertyUI) {
+    // Send property card first, then images
+    const showProp = await getPropertyById(aiResult.showProperty);
+    if (showProp) {
+      const card = formatPropertyCard(showProp);
+      await sendTextMessage(from, card);
+    }
     await sendPropertyImages(from, aiResult.showProperty);
   }
 
@@ -541,20 +568,23 @@ async function sendPropertyImages(to, propertyId) {
 }
 
 /**
- * Send detailed property view with image (triggered by interactive list selection)
+ * Send detailed property view — card text → images → action buttons.
+ * Used by non-AI flows (e.g. /properties command). For the interactive
+ * list selection, the property_ handler orchestrates the full flow
+ * (card → images → AI description → buttons).
  */
 async function sendPropertyDetail(to, propertyId) {
   const property = await getPropertyById(propertyId);
   if (!property) return;
 
-  // Send image
-  await sendPropertyImages(to, propertyId);
-
-  // Send property details
+  // 1. Send property card text first
   const card = formatPropertyCard(property);
   await sendTextMessage(to, card);
 
-  // Send action buttons
+  // 2. Send ALL images
+  await sendPropertyImages(to, propertyId);
+
+  // 3. Send action buttons
   await sendButtonMessage(
     to,
     `What would you like to do?`,

@@ -180,7 +180,7 @@ const DEFAULT_PROPERTIES = [
       "https://devtracoplus.com/site/assets/files/1072/sam_0539.768x0.jpg"
     ],
     projectUrl: "https://devtracoplus.com/projects/the-niiyo",
-    description: "A residential oasis in Dzorwulu with 31 signature homes. Floor-to-ceiling windows and fibre glass doors. Opposite Mmofra Children's Park, 5 mins to Accra Mall.",
+    description: "A residential oasis in Dzorwulu with 31 signature homes. Floor-to-ceiling windows and fibre glass doors. Opposite Mmofra Children's Park, 5 mins to Accra Mall. Designed with a signature style and modern finishes, ensuring both comfort and elegance.",
   },
   {
     propertyId: "palmers-place",
