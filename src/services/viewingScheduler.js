@@ -10,6 +10,175 @@ import { syncViewingToCRM } from "./crmSync.js";
 const memoryViewings = new Map();
 let viewingCounter = 0;
 
+// ───────── Date resolution ─────────
+
+/**
+ * Resolve a human-friendly date string (e.g. "tomorrow", "Saturday", "2026-03-07")
+ * into an ISO YYYY-MM-DD string. Returns null if unparseable.
+ */
+export function resolveDate(input) {
+  if (!input || input === "To be confirmed") return null;
+
+  const text = input.trim().toLowerCase();
+  const now = new Date();
+
+  // Already ISO format (YYYY-MM-DD)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+
+  // "today"
+  if (text === "today") return toISO(now);
+
+  // "tomorrow"
+  if (text === "tomorrow") {
+    const d = new Date(now);
+    d.setDate(d.getDate() + 1);
+    return toISO(d);
+  }
+
+  // Day names: "monday", "tuesday", etc. — resolve to the next occurrence
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const dayIdx = dayNames.indexOf(text);
+  if (dayIdx !== -1) {
+    const d = new Date(now);
+    const currentDay = d.getDay();
+    let daysAhead = dayIdx - currentDay;
+    if (daysAhead <= 0) daysAhead += 7; // next week if same or past
+    d.setDate(d.getDate() + daysAhead);
+    return toISO(d);
+  }
+
+  // "next monday", "next friday", etc.
+  const nextDayMatch = text.match(/^next\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/);
+  if (nextDayMatch) {
+    const targetDay = dayNames.indexOf(nextDayMatch[1]);
+    const d = new Date(now);
+    const currentDay = d.getDay();
+    let daysAhead = targetDay - currentDay;
+    if (daysAhead <= 0) daysAhead += 7;
+    d.setDate(d.getDate() + daysAhead);
+    return toISO(d);
+  }
+
+  // Various date formats: "7th March", "March 7", "7/3/2026", "07-03-2026", etc.
+  // Try Date.parse as fallback
+  const parsed = new Date(input.trim());
+  if (!isNaN(parsed.getTime())) {
+    // If the parsed date is in the past (no year specified), assume next year
+    if (parsed < now && !input.match(/\d{4}/)) {
+      parsed.setFullYear(parsed.getFullYear() + 1);
+    }
+    return toISO(parsed);
+  }
+
+  // Ordinal dates: "7th March 2026", "March 7th", "7th March"
+  const ordinalMatch = input.trim().match(/(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*(?:\s+(\d{4}))?/i);
+  if (ordinalMatch) {
+    const day = parseInt(ordinalMatch[1]);
+    const monthStr = ordinalMatch[2].toLowerCase();
+    const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const month = months.indexOf(monthStr.slice(0, 3));
+    const year = ordinalMatch[3] ? parseInt(ordinalMatch[3]) : now.getFullYear();
+    const d = new Date(year, month, day);
+    if (d < now && !ordinalMatch[3]) d.setFullYear(d.getFullYear() + 1);
+    return toISO(d);
+  }
+
+  return null;
+}
+
+/**
+ * Resolve a human-friendly time string (e.g. "2pm", "10:00", "around 3pm")
+ * into an HH:MM string. Returns null if unparseable.
+ */
+export function resolveTime(input) {
+  if (!input || input === "To be confirmed") return null;
+
+  const text = input.trim().toLowerCase().replace(/around\s*/i, "").replace(/\s+/g, "");
+
+  // "14:00" or "14:30"
+  if (/^\d{1,2}:\d{2}$/.test(text)) return text.padStart(5, "0");
+
+  // "2pm", "10am", "3:30pm"
+  const timeMatch = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+  if (timeMatch) {
+    let hour = parseInt(timeMatch[1]);
+    const min = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+    const ampm = timeMatch[3]?.toLowerCase();
+    if (ampm === "pm" && hour < 12) hour += 12;
+    if (ampm === "am" && hour === 12) hour = 0;
+    return `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
+function toISO(date) {
+  return date.toISOString().split("T")[0];
+}
+
+// ───────── Business hours validation ─────────
+
+/**
+ * Validate that a date+time falls within business hours (Mon-Fri, 8am-5pm)
+ * Returns { valid: true } or { valid: false, reason: "..." }
+ */
+export function validateBusinessHours(dateStr, timeStr) {
+  if (!dateStr) return { valid: true }; // can't validate without a date
+
+  const date = new Date(dateStr);
+  const dayOfWeek = date.getDay(); // 0=Sun, 6=Sat
+
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    return {
+      valid: false,
+      reason: `Property viewings are available Monday to Friday only. ${dateStr} falls on a ${dayOfWeek === 0 ? "Sunday" : "Saturday"}. Please choose a weekday.`,
+    };
+  }
+
+  if (timeStr) {
+    const [hour] = timeStr.split(":").map(Number);
+    if (hour < 8 || hour >= 17) {
+      return {
+        valid: false,
+        reason: `Viewings are available between 8:00 AM and 5:00 PM. The requested time (${timeStr}) is outside business hours. Please choose a time within this window.`,
+      };
+    }
+  }
+
+  return { valid: true };
+}
+
+// ───────── Available slots ─────────
+
+/**
+ * Get available viewing slots for a given date.
+ * Slots run every hour from 8am to 4pm (last slot starts at 4pm, ends by 5pm).
+ * Already-booked slots (PENDING or CONFIRMED) are excluded.
+ */
+export async function getAvailableSlots(dateStr, propertyId = null) {
+  const ALL_SLOTS = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
+
+  // Get existing viewings for this date
+  let existingViewings = [];
+  if (isDBConnected()) {
+    try {
+      const query = { preferredDate: dateStr, status: { $in: ["PENDING", "CONFIRMED"] } };
+      if (propertyId) query.propertyId = propertyId;
+      const docs = await ViewingModel.find(query).lean();
+      existingViewings = docs.map(d => d.preferredTime);
+    } catch {}
+  } else {
+    existingViewings = Array.from(memoryViewings.values())
+      .filter(v => v.preferredDate === dateStr && ["PENDING", "CONFIRMED"].includes(v.status))
+      .filter(v => !propertyId || v.propertyId === propertyId)
+      .map(v => v.preferredTime);
+  }
+
+  // Filter out booked slots
+  const available = ALL_SLOTS.filter(slot => !existingViewings.includes(slot));
+  return available;
+}
+
 // ───────── Get next counter value ─────────
 
 async function getNextId() {
@@ -28,16 +197,47 @@ async function getNextId() {
 // ───────── CRUD ─────────
 
 export async function createViewing({ userId, propertyId, propertyName, preferredDate, preferredTime, name, phone, email, notes }) {
+  // Resolve human-friendly dates/times to standard formats
+  const resolvedDate = resolveDate(preferredDate) || preferredDate || "To be confirmed";
+  const resolvedTime = resolveTime(preferredTime) || preferredTime || "To be confirmed";
+
+  // Validate business hours (Mon-Fri, 8am-5pm)
+  if (resolvedDate && resolvedDate !== "To be confirmed") {
+    const bizCheck = validateBusinessHours(resolvedDate, resolvedTime !== "To be confirmed" ? resolvedTime : null);
+    if (!bizCheck.valid) {
+      console.log(`[Viewing] Rejected — business hours: ${bizCheck.reason}`);
+      return { rejected: true, reason: bizCheck.reason };
+    }
+  }
+
   // Validate 24-hour advance booking rule
-  if (preferredDate && preferredDate !== "To be confirmed") {
-    const requestedDate = new Date(preferredDate);
+  if (resolvedDate && resolvedDate !== "To be confirmed") {
+    const requestedDate = new Date(resolvedDate + (resolvedTime !== "To be confirmed" ? `T${resolvedTime}:00` : "T23:59:59"));
     const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours from now
     if (!isNaN(requestedDate.getTime()) && requestedDate < minDate) {
-      console.log(`[Viewing] Rejected — date ${preferredDate} is less than 24 hours away`);
+      console.log(`[Viewing] Rejected — date ${resolvedDate} ${resolvedTime} is less than 24 hours away`);
+      // Get available slots for the next business day
+      const nextBiz = getNextBusinessDay();
+      const slots = await getAvailableSlots(nextBiz, propertyId);
+      const slotText = slots.length > 0
+        ? `\n\nThe next available date is *${formatDateNice(nextBiz)}*. Available slots:\n${slots.map(s => `• ${formatTimeNice(s)}`).join("\n")}`
+        : "";
       return {
         rejected: true,
-        reason: "All property viewings must be scheduled at least 24 hours in advance. Please choose a later date.",
+        reason: `All property viewings must be scheduled at least 24 hours in advance. Please choose a later date.${slotText}`,
       };
+    }
+  }
+
+  // Check slot availability
+  if (resolvedDate !== "To be confirmed" && resolvedTime !== "To be confirmed") {
+    const slots = await getAvailableSlots(resolvedDate, propertyId);
+    if (!slots.includes(resolvedTime)) {
+      const slotText = slots.length > 0
+        ? `Available slots for *${formatDateNice(resolvedDate)}*:\n${slots.map(s => `• ${formatTimeNice(s)}`).join("\n")}`
+        : `No slots available on ${formatDateNice(resolvedDate)}. Please choose another date.`;
+      console.log(`[Viewing] Rejected — slot ${resolvedTime} on ${resolvedDate} not available`);
+      return { rejected: true, reason: `The ${formatTimeNice(resolvedTime)} slot on ${formatDateNice(resolvedDate)} is not available.\n\n${slotText}` };
     }
   }
 
@@ -48,8 +248,8 @@ export async function createViewing({ userId, propertyId, propertyName, preferre
     userId,
     propertyId: propertyId || "unknown",
     propertyName: propertyName || "Not specified",
-    preferredDate: preferredDate || "To be confirmed",
-    preferredTime: preferredTime || "To be confirmed",
+    preferredDate: resolvedDate,
+    preferredTime: resolvedTime,
     name: name || "Not provided",
     phone: phone || userId,
     email: email || "Not provided",
@@ -219,4 +419,70 @@ function docToViewing(doc) {
     createdAt: doc.createdAt ? new Date(doc.createdAt).getTime() : Date.now(),
     updatedAt: doc.updatedAt ? new Date(doc.updatedAt).getTime() : Date.now(),
   };
+}
+
+/**
+ * Get the next business day (Mon-Fri) that is at least 24h away.
+ */
+function getNextBusinessDay() {
+  const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  while (d.getDay() === 0 || d.getDay() === 6) {
+    d.setDate(d.getDate() + 1);
+  }
+  return toISO(d);
+}
+
+/**
+ * Format YYYY-MM-DD to "Monday, 10 March 2026"
+ */
+function formatDateNice(dateStr) {
+  try {
+    const d = new Date(dateStr + "T12:00:00");
+    return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Format HH:MM to "10:00 AM"
+ */
+function formatTimeNice(timeStr) {
+  try {
+    const [h, m] = timeStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const hour12 = h % 12 || 12;
+    return `${hour12}:${String(m).padStart(2, "0")} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+}
+
+// ───────── Bulk operations ─────────
+
+export async function deleteViewing(id) {
+  if (isDBConnected()) {
+    try {
+      await ViewingModel.deleteOne({ viewingId: id });
+    } catch (err) {
+      console.error("[Viewing] DB delete failed:", err.message);
+    }
+  }
+  memoryViewings.delete(id);
+  console.log(`[Viewing] Deleted ${id}`);
+}
+
+export async function deleteAllViewings() {
+  if (isDBConnected()) {
+    try {
+      const result = await ViewingModel.deleteMany({});
+      console.log(`[Viewing] Deleted ${result.deletedCount} viewings from DB`);
+    } catch (err) {
+      console.error("[Viewing] DB deleteAll failed:", err.message);
+    }
+  }
+  const count = memoryViewings.size;
+  memoryViewings.clear();
+  viewingCounter = 0;
+  console.log(`[Viewing] Cleared ${count} in-memory viewings`);
 }

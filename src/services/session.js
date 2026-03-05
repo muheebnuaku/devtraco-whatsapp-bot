@@ -165,6 +165,20 @@ export async function deleteSession(userId) {
   }
 }
 
+export async function deleteAllSessions() {
+  const count = cache.size;
+  cache.clear();
+  if (isDBConnected()) {
+    try {
+      const result = await SessionModel.deleteMany({});
+      console.log(`[Session] Deleted ${result.deletedCount} sessions from DB`);
+    } catch (err) {
+      console.error("[Session] DB deleteAll failed:", err.message);
+    }
+  }
+  console.log(`[Session] Cleared ${count} cached sessions`);
+}
+
 export async function getAllSessions() {
   if (isDBConnected()) {
     try {

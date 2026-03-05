@@ -10,7 +10,7 @@ import {
   markAsRead,
 } from "../services/whatsapp.js";
 import { getAllProperties, getPropertyById, formatPropertyCard } from "../data/properties.js";
-import { createViewing, formatViewingPending, formatViewingConfirmed, getUserViewings, updateViewingStatus } from "../services/viewingScheduler.js";
+import { createViewing, formatViewingPending, formatViewingConfirmed, getUserViewings, updateViewingStatus, resolveDate, resolveTime } from "../services/viewingScheduler.js";
 import config from "../config/index.js";
 
 // Base URL for serving uploaded images (needed for WhatsApp absolute URLs)

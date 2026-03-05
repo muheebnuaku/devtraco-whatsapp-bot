@@ -755,7 +755,10 @@
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Recent Conversations</h3>
-        <span class="badge badge-info" id="convoCount">0 chats</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="badge badge-info" id="convoCount">0 chats</span>
+          <button class="btn btn-danger btn-sm" onclick="clearAllConversations()">Clear All</button>
+        </div>
       </div>
       <div class="table-wrapper">
         <table>
@@ -793,7 +796,10 @@
     <div class="card">
       <div class="card-header">
         <h3 class="card-title">Scheduled Viewings</h3>
-        <button class="btn btn-sm" onclick="refreshViewings()">Refresh</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-sm" onclick="refreshViewings()">Refresh</button>
+          <button class="btn btn-danger btn-sm" onclick="clearAllViewings()">Clear All</button>
+        </div>
       </div>
       <div class="table-wrapper">
         <table>
@@ -1264,7 +1270,10 @@
             <td><span class="badge tier-${c.leadTier}">${c.leadTier}</span></td>
             <td>${c.state}</td>
             <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${c.lastMessage || '\u2014'}</td>
-            <td><button class="btn btn-sm" onclick="viewChat('${c.userId}')">View</button></td>
+            <td style="white-space:nowrap;">
+              <button class="btn btn-sm" onclick="viewChat('${c.userId}')">View</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteConversation('${c.userId}')" title="Delete" style="color:var(--danger);margin-left:4px;">✕</button>
+            </td>
           </tr>
         `).join('');
     } catch (err) { console.error('Failed to load conversations:', err); }
@@ -1340,11 +1349,12 @@
           <td>${v.preferredDate}</td>
           <td>${v.preferredTime}</td>
           <td><span class="badge ${v.status === 'CONFIRMED' ? 'badge-success' : v.status === 'PENDING' ? 'badge-warning' : 'badge-danger'}">${v.status}</span></td>
-          <td>
+          <td style="white-space:nowrap;">
             ${v.status === 'PENDING' ? `
               <button class="btn btn-success btn-sm" onclick="updateViewing('${v.id}', 'CONFIRMED')">Confirm</button>
               <button class="btn btn-danger btn-sm" style="margin-left:4px;" onclick="updateViewing('${v.id}', 'CANCELLED')">Cancel</button>
-            ` : '\u2014'}
+            ` : ''}
+            <button class="btn btn-ghost btn-sm" onclick="deleteViewingSingle('${v.id}')" title="Delete" style="color:var(--danger);margin-left:4px;">✕</button>
           </td>
         </tr>
       `).join('');
@@ -1360,6 +1370,41 @@
       });
       refreshViewings();
     } catch (err) { alert('Failed to update viewing: ' + err.message); }
+  }
+
+  async function deleteViewingSingle(id) {
+    if (!confirm(`Delete viewing ${id}?`)) return;
+    try {
+      await authFetch(`${API}/viewings/${id}`, { method: 'DELETE' });
+      refreshViewings();
+    } catch (err) { alert('Failed to delete viewing: ' + err.message); }
+  }
+
+  async function clearAllViewings() {
+    if (!confirm('Delete ALL viewings? This cannot be undone.')) return;
+    try {
+      await authFetch(`${API}/viewings`, { method: 'DELETE' });
+      refreshViewings();
+    } catch (err) { alert('Failed to clear viewings: ' + err.message); }
+  }
+
+  async function clearAllConversations() {
+    if (!confirm('Delete ALL conversations and leads? This cannot be undone.')) return;
+    try {
+      await authFetch(`${API}/conversations`, { method: 'DELETE' });
+      refreshConvoList();
+      refreshStats();
+      document.getElementById('chatContainer').innerHTML = '<div class="chat-empty">All conversations cleared</div>';
+    } catch (err) { alert('Failed to clear conversations: ' + err.message); }
+  }
+
+  async function deleteConversation(userId) {
+    if (!confirm(`Delete conversation for ${userId}?`)) return;
+    try {
+      await authFetch(`${API}/conversations/${userId}`, { method: 'DELETE' });
+      refreshConvoList();
+      refreshStats();
+    } catch (err) { alert('Failed to delete conversation: ' + err.message); }
   }
 
   // ========== PROPERTIES ==========

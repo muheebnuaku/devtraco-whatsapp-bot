@@ -6,6 +6,8 @@ import {
   getActiveSessionCount,
   getSession,
   getSessionReadOnly,
+  deleteSession,
+  deleteAllSessions,
 } from "../services/session.js";
 import { formatLeadReport, getLeadTier } from "../services/leadCapture.js";
 import {
@@ -15,7 +17,7 @@ import {
   updateProperty,
   deleteProperty,
 } from "../data/properties.js";
-import { getAllViewings, getPendingViewingCount, updateViewingStatus, formatViewingConfirmed, formatViewingCancelled } from "../services/viewingScheduler.js";
+import { getAllViewings, getPendingViewingCount, updateViewingStatus, formatViewingConfirmed, formatViewingCancelled, deleteViewing, deleteAllViewings, getAvailableSlots } from "../services/viewingScheduler.js";
 import { sendTextMessage } from "../services/whatsapp.js";
 import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
 import { invalidatePromptCache } from "../services/ai.js";
@@ -113,6 +115,22 @@ router.get("/leads/:userId", async (req, res) => {
     return res.status(404).json({ error: "Lead not found" });
   }
   res.json(formatLeadReport(session));
+});
+
+/**
+ * DELETE /api/conversations — Delete ALL conversations/sessions
+ */
+router.delete("/conversations", async (req, res) => {
+  await deleteAllSessions();
+  res.json({ success: true, message: "All conversations cleared" });
+});
+
+/**
+ * DELETE /api/conversations/:userId — Delete a specific conversation
+ */
+router.delete("/conversations/:userId", async (req, res) => {
+  await deleteSession(req.params.userId);
+  res.json({ success: true, message: `Conversation ${req.params.userId} deleted` });
 });
 
 /**
@@ -229,6 +247,31 @@ router.get("/viewings", async (req, res) => {
     confirmed: viewings.filter(v => v.status === "CONFIRMED").length,
     viewings,
   });
+});
+
+/**
+ * DELETE /api/viewings — Delete ALL viewings
+ */
+router.delete("/viewings", async (req, res) => {
+  await deleteAllViewings();
+  res.json({ success: true, message: "All viewings cleared" });
+});
+
+/**
+ * DELETE /api/viewings/:id — Delete a specific viewing
+ */
+router.delete("/viewings/:id", async (req, res) => {
+  await deleteViewing(req.params.id);
+  res.json({ success: true, message: `Viewing ${req.params.id} deleted` });
+});
+
+/**
+ * GET /api/viewings/slots/:date — Get available viewing slots for a date
+ */
+router.get("/viewings/slots/:date", async (req, res) => {
+  const propertyId = req.query.propertyId || null;
+  const slots = await getAvailableSlots(req.params.date, propertyId);
+  res.json({ date: req.params.date, propertyId, availableSlots: slots });
 });
 
 /**
