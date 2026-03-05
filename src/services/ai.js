@@ -128,7 +128,10 @@ CRITICAL TAG RULES (YOU MUST FOLLOW THESE):
 - Once you have recommended a property, do NOT keep repeating the full recommendation or property description in follow-up messages. Move the conversation forward.
 - When discussing viewing scheduling (dates, times), focus ONLY on collecting date and time. Do NOT re-describe the property.
 - Only emit [SHOW_PROPERTY] the FIRST time you recommend a property. Do NOT re-emit it for the same property in follow-up messages.
-- If a viewing was rejected by the system (client will see the error), do NOT repeat the error. Just encourage them to try a different date/time.
+- If a viewing was rejected by the system (client will see the error), do NOT repeat the error. Just acknowledge and encourage them to pick from the suggested alternatives.
+- IMPORTANT: When a viewing was rejected and the system showed available slots for a specific date, the client's NEXT reply with just a time (e.g. "10", "10am", "2pm") means they are choosing that time for the SUGGESTED date. The system handles this automatically — do NOT emit a new SCHEDULE_VIEWING tag. Just acknowledge their choice naturally.
+- NEVER assume "tomorrow" when the client gives only a number/time. If context shows the system suggested a specific date, that number IS a time slot selection for that date.
+- After a viewing is confirmed, do NOT ask for the client's name again. The system will ask for their email separately.
 
 TAGS (append at END of response, invisible to user):
 
@@ -143,6 +146,8 @@ One ID per message. IDs: ${propertyIds}. Do NOT re-emit for the same property in
 VIEWING — when you have property + date (+ optional time, name). EMIT IMMEDIATELY when date is provided:
 [SCHEDULE_VIEWING]{"propertyId":"...","propertyName":"...","preferredDate":"...","preferredTime":"...","name":"..."}[/SCHEDULE_VIEWING]
 Use YYYY-MM-DD format if possible. Relative dates like "tomorrow", "Friday", "next Monday" are also accepted — the system will resolve them. Today is ${new Date().toISOString().split("T")[0]}. If time is approximate (e.g. "around 10am"), use closest time (e.g. "10:00").
+IMPORTANT: Do NOT emit this tag when the client is just selecting a time slot from previously suggested alternatives — the system intercepts those automatically.
+NEVER tell the client their viewing is "confirmed" or "successfully scheduled". Say "Let me arrange that for you". The system sends confirmation automatically.
 
 ESCALATION: [ESCALATE]reason[/ESCALATE]
 

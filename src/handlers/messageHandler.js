@@ -10,7 +10,8 @@ import {
   markAsRead,
 } from "../services/whatsapp.js";
 import { getAllProperties, getPropertyById, formatPropertyCard } from "../data/properties.js";
-import { createViewing, formatViewingPending, formatViewingConfirmed, getUserViewings, updateViewingStatus, resolveDate, resolveTime } from "../services/viewingScheduler.js";
+import { createViewing, formatViewingPending, formatViewingConfirmed, getUserViewings, updateViewingStatus, resolveDate, resolveTime, formatDateNice, formatTimeNice, getAvailableSlots } from "../services/viewingScheduler.js";
+import { sendViewingConfirmationEmail } from "../services/email.js";
 import config from "../config/index.js";
 
 // Base URL for serving uploaded images (needed for WhatsApp absolute URLs)
@@ -161,6 +162,80 @@ export async function handleIncomingMessage(messagePayload) {
       await sendTextMessage(from, "I'd love to address you properly. Could you please share your name?");
     }
     return;
+  }
+
+  // --- Email collection after viewing ---
+  if (session.state === "AWAITING_EMAIL") {
+    const emailMatch = userText.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (emailMatch) {
+      const email = emailMatch[0];
+      await updateLeadData(from, { email });
+      await updateState(from, "ACTIVE");
+      await addMessage(from, "user", userText);
+
+      // Send confirmation email if viewing exists
+      const viewingId = session.metadata?.lastViewingId;
+      if (viewingId) {
+        const viewing = await (await import("../services/viewingScheduler.js")).getViewingById(viewingId);
+        if (viewing) {
+          const emailResult = await sendViewingConfirmationEmail(email, viewing);
+          if (emailResult.sent) {
+            await sendTextMessage(from, `📧 Thank you! A confirmation email has been sent to *${email}*.`);
+          } else {
+            await sendTextMessage(from, `📧 Thank you! We've noted your email: *${email}*. Our team will send you a detailed confirmation shortly.`);
+          }
+        } else {
+          await sendTextMessage(from, `📧 Thank you! We've noted your email: *${email}*.`);
+        }
+      } else {
+        await sendTextMessage(from, `📧 Thank you! We've noted your email: *${email}*.`);
+      }
+      await addMessage(from, "assistant", `Thank you, email noted: ${email}`);
+      await sendTextMessage(from, `Is there anything else I can help you with? 😊`);
+      return;
+    }
+
+    // User typed "skip" or "no" or didn't provide email
+    const skip = userText.trim().toLowerCase();
+    if (skip === "skip" || skip === "no" || skip === "no thanks" || skip === "later") {
+      await updateState(from, "ACTIVE");
+      await sendTextMessage(from, `No problem! If you'd like to provide your email later, just let me know. 😊\n\nIs there anything else I can help you with?`);
+      return;
+    }
+
+    // Didn't look like an email — prompt again
+    await sendTextMessage(from, `Please provide a valid email address, or type *skip* if you'd prefer not to.`);
+    return;
+  }
+
+  // --- Suggested-date interception ---
+  // When a viewing was rejected and the system suggested an alternative date,
+  // intercept time-only replies (e.g. "10", "10am", "2pm") and use the suggested date.
+  if (session.metadata?.suggestedDate && session.metadata?.suggestedProperty) {
+    const timeCandidate = resolveTime(userText.trim());
+    if (timeCandidate) {
+      const sugDate = session.metadata.suggestedDate;
+      const sugProp = session.metadata.suggestedProperty;
+      console.log(`[Scheduling] Intercepted time-only reply "${userText}" — using suggested date ${sugDate}`);
+
+      // Clear suggested context before creating
+      delete session.metadata.suggestedDate;
+      delete session.metadata.suggestedProperty;
+
+      await addMessage(from, "user", userText);
+      const clientName = session.leadData?.name || "Valued Client";
+      await sendTextMessage(from, `Thank you for your preferred date and time, ${clientName}. I will schedule your viewing for *${sugProp.name}* on *${formatDateNice(sugDate)} at ${formatTimeNice(timeCandidate)}*.\n\nLet me arrange that for you.`);
+      await addMessage(from, "assistant", `Scheduling viewing for ${sugProp.name} on ${sugDate} at ${timeCandidate}`);
+
+      await handleViewingSchedule(from, {
+        propertyId: sugProp.id,
+        propertyName: sugProp.name,
+        preferredDate: sugDate,
+        preferredTime: timeCandidate,
+        name: session.leadData?.name || "Not provided",
+      });
+      return;
+    }
   }
 
   // --- AI conversation pipeline ---
@@ -509,20 +584,47 @@ async function handleViewingSchedule(to, scheduleData) {
     notes: scheduleData.notes || "",
   });
 
-  // Handle 24-hour advance booking rejection
+  // Handle rejections (24-hour rule, business hours, slot taken)
   if (viewing.rejected) {
     await sendTextMessage(to, `⚠️ ${viewing.reason}`);
+    // Store suggested date/property so next time-only reply uses it
+    session.metadata = session.metadata || {};
+    if (viewing.suggestedDate) {
+      session.metadata.suggestedDate = viewing.suggestedDate;
+      session.metadata.suggestedProperty = {
+        id: scheduleData.propertyId || "unknown",
+        name: scheduleData.propertyName || "Not specified",
+      };
+    }
+    // Add to conversation history so AI has context
+    await addMessage(to, "assistant", `⚠️ ${viewing.reason}`);
     return;
   }
 
-  // Clear scheduling flag
+  // Success — clear scheduling flag
   session.metadata = session.metadata || {};
   session.metadata.scheduling = null;
+  session.metadata.suggestedDate = null;
+  session.metadata.suggestedProperty = null;
+  session.metadata.lastViewingId = viewing.viewingId;
 
-  // Send pending acknowledgment
-  setTimeout(async () => {
-    await sendTextMessage(to, formatViewingPending(viewing));
-  }, 1500);
+  const clientName = viewing.name !== "Not provided" ? viewing.name : "Valued Client";
+  const dateDisplay = formatDateNice(viewing.preferredDate);
+  const timeDisplay = formatTimeNice(viewing.preferredTime);
+
+  // Send submission confirmation
+  const submissionMsg = [
+    `I have submitted your viewing request for *${viewing.propertyName}* on *${dateDisplay} at ${timeDisplay}*. ✅`,
+    ``,
+    `📋 Reference: *${viewing.viewingId}*`,
+    ``,
+    `You will receive a confirmation call or message shortly, along with the contact details of your assigned Sales Executive.`,
+    ``,
+    `If you have any further questions or need assistance, please feel free to reach out. Thank you for choosing Devtraco Plus! 🙏`,
+  ].join("\n");
+
+  await sendTextMessage(to, submissionMsg);
+  await addMessage(to, "assistant", submissionMsg);
 
   // Auto-confirm viewing after 10 seconds and notify customer
   setTimeout(async () => {
@@ -531,11 +633,24 @@ async function handleViewingSchedule(to, scheduleData) {
       if (confirmed) {
         await sendTextMessage(to, formatViewingConfirmed(confirmed));
         console.log(`[Viewing] Auto-confirmed ${viewing.viewingId} for ${to}`);
+
+        // Send email if we have one
+        if (session.leadData?.email && session.leadData.email !== "Not provided") {
+          await sendViewingConfirmationEmail(session.leadData.email, confirmed);
+        }
       }
     } catch (err) {
       console.error(`[Viewing] Auto-confirm failed for ${viewing.viewingId}:`, err.message);
     }
   }, 10000);
+
+  // Ask for email if not yet collected
+  setTimeout(async () => {
+    if (!session.leadData?.email || session.leadData.email === "Not provided") {
+      await updateState(to, "AWAITING_EMAIL");
+      await sendTextMessage(to, `📧 To send you a confirmation email with all the details, could you please share your email address?\n\nType *skip* if you'd prefer not to.`);
+    }
+  }, 3000);
 }
 
 /**
@@ -588,8 +703,8 @@ async function sendPropertyList(to) {
       title: "Apartments",
       rows: apartments.slice(0, 7).map((p) => ({
         id: `property_${p.id}`,
-        title: p.name,
-        description: `${p.location} — From $${p.priceFrom.toLocaleString()}`,
+        title: p.name.slice(0, 24),
+        description: `${p.location} — From $${p.priceFrom.toLocaleString()}`.slice(0, 72),
       })),
     });
   }
@@ -598,8 +713,8 @@ async function sendPropertyList(to) {
       title: "Townhouses & Townhomes",
       rows: houses.slice(0, 3).map((p) => ({
         id: `property_${p.id}`,
-        title: p.name,
-        description: `${p.location} — From $${p.priceFrom.toLocaleString()}`,
+        title: p.name.slice(0, 24),
+        description: `${p.location} — From $${p.priceFrom.toLocaleString()}`.slice(0, 72),
       })),
     });
   }

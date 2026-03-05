@@ -57,6 +57,15 @@ const config = {
     tokenExpiry: 24 * 60 * 60 * 1000, // 24 hours
   },
 
+  // Email (SMTP via Nodemailer — optional)
+  email: {
+    host: process.env.SMTP_HOST || "",
+    port: parseInt(process.env.SMTP_PORT || "587", 10),
+    user: process.env.SMTP_USER || "",
+    pass: process.env.SMTP_PASS || "",
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || "noreply@devtracoplus.com",
+  },
+
   // Microsoft Dynamics 365 CRM
   dynamics: {
     enabled: !!(process.env.DYNAMICS_ORG_URL && process.env.DYNAMICS_CLIENT_ID),

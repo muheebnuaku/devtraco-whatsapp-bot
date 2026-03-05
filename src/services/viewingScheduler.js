@@ -225,6 +225,7 @@ export async function createViewing({ userId, propertyId, propertyName, preferre
       return {
         rejected: true,
         reason: `All property viewings must be scheduled at least 24 hours in advance. Please choose a later date.${slotText}`,
+        suggestedDate: nextBiz,
       };
     }
   }
@@ -435,7 +436,7 @@ function getNextBusinessDay() {
 /**
  * Format YYYY-MM-DD to "Monday, 10 March 2026"
  */
-function formatDateNice(dateStr) {
+export function formatDateNice(dateStr) {
   try {
     const d = new Date(dateStr + "T12:00:00");
     return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
@@ -447,7 +448,7 @@ function formatDateNice(dateStr) {
 /**
  * Format HH:MM to "10:00 AM"
  */
-function formatTimeNice(timeStr) {
+export function formatTimeNice(timeStr) {
   try {
     const [h, m] = timeStr.split(":").map(Number);
     const ampm = h >= 12 ? "PM" : "AM";
