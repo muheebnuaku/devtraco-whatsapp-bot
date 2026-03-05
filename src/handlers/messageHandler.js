@@ -17,6 +17,17 @@ import config from "../config/index.js";
 // Base URL for serving uploaded images (needed for WhatsApp absolute URLs)
 const BASE_URL = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || `http://localhost:${config.port}`;
 
+// --- Message deduplication (prevents duplicate processing from webhook retries) ---
+const recentMessageIds = new Set();
+const DEDUP_TTL = 60_000; // 60 seconds
+
+function isDuplicate(messageId) {
+  if (recentMessageIds.has(messageId)) return true;
+  recentMessageIds.add(messageId);
+  setTimeout(() => recentMessageIds.delete(messageId), DEDUP_TTL);
+  return false;
+}
+
 /**
  * Main conversation handler — routes every incoming message through the AI pipeline.
  */
@@ -24,6 +35,12 @@ export async function handleIncomingMessage(messagePayload) {
   const { from, messageId, type, text, interactive } = normalizePayload(messagePayload);
 
   if (!from || !messageId) return;
+
+  // Deduplicate webhook retries
+  if (isDuplicate(messageId)) {
+    console.log(`[Dedup] Skipping duplicate message ${messageId}`);
+    return;
+  }
 
   // Mark as read immediately for good UX
   markAsRead(messageId);
@@ -98,7 +115,11 @@ export async function handleIncomingMessage(messagePayload) {
       if (aiResult.leadData) await captureLead(from, aiResult.leadData);
       await sendTextMessage(from, aiResult.text);
 
-      // 4. Send "What would you like to do?" action buttons
+      // 4. Track cooldown to prevent re-display in the next 5 minutes
+      session.metadata = session.metadata || {};
+      session.metadata.lastPropertyButtons = { propertyId, time: Date.now() };
+
+      // 5. Send "What would you like to do?" action buttons
       await sendButtonMessage(
         from,
         `What would you like to do?`,
@@ -310,7 +331,9 @@ export async function handleIncomingMessage(messagePayload) {
   const recentlyShown = lastButtons &&
     lastButtons.propertyId === aiResult.showProperty &&
     (Date.now() - lastButtons.time) < 5 * 60 * 1000;
-  const suppressPropertyUI = skipMedia || isScheduling || recentlyShown;
+  // Also suppress if a viewing was recently booked for this property
+  const viewingJustBooked = !!session.metadata?.lastViewingId;
+  const suppressPropertyUI = skipMedia || isScheduling || recentlyShown || viewingJustBooked;
 
   if (aiResult.showProperty && !suppressPropertyUI) {
     // Send property card first, then images
