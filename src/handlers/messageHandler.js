@@ -89,11 +89,35 @@ export async function handleIncomingMessage(messagePayload) {
       await setConsent(from, true);
       session.metadata = session.metadata || {};
       session.metadata.consentDeclined = false;
+
+      // Check if the user was trying to schedule a viewing before consent
+      const pendingProperty = session.metadata.pendingViewingProperty;
+      delete session.metadata.pendingViewingProperty;
+
       // If name already collected (user was in limited mode), go straight to ACTIVE
       if (session.leadData?.name) {
         await updateState(from, "ACTIVE");
-        await sendTextMessage(from, `Thank you for your consent, *${session.leadData.name}*! 🙏\n\nYou now have full access. How may I assist you today?`);
-        setTimeout(() => sendMainMenu(from), 1500);
+
+        // Resume pending viewing flow instead of generic welcome
+        if (pendingProperty && pendingProperty !== "general") {
+          const property = await getPropertyById(pendingProperty);
+          const propertyName = property?.name || "the property";
+          await sendTextMessage(from, `Thank you for your consent, *${session.leadData.name}*! 🙏\n\nLet's continue with scheduling your visit to *${propertyName}*.`);
+          session.metadata.scheduling = pendingProperty;
+          await addMessage(from, "user", `I'd like to schedule a viewing for ${propertyName}`);
+          const aiResult = await generateAIResponseFull(from, session);
+          if (aiResult.leadData) await captureLead(from, aiResult.leadData);
+          await sendTextMessage(from, aiResult.text);
+          if (aiResult.scheduleViewing) {
+            await handleViewingSchedule(from, aiResult.scheduleViewing);
+          }
+        } else if (pendingProperty === "general") {
+          await sendTextMessage(from, `Thank you for your consent, *${session.leadData.name}*! 🙏\n\nLet's schedule your property viewing. Which property are you interested in visiting?`);
+          await sendPropertyList(from);
+        } else {
+          await sendTextMessage(from, `Thank you for your consent, *${session.leadData.name}*! 🙏\n\nYou now have full access. How may I assist you today?`);
+          setTimeout(() => sendMainMenu(from), 1500);
+        }
       } else {
         await updateState(from, "AWAITING_NAME");
         await sendTextMessage(from, "Thank you for your consent! 🙏\n\nBefore we proceed, may I have your name, please?");
@@ -157,6 +181,8 @@ export async function handleIncomingMessage(messagePayload) {
     if (interactiveId.startsWith("schedule_")) {
       // Check consent before allowing viewing
       if (!session.consentGiven) {
+        session.metadata = session.metadata || {};
+        session.metadata.pendingViewingProperty = interactiveId.replace("schedule_", "");
         await sendConsentForViewing(from);
         return;
       }
@@ -186,6 +212,8 @@ export async function handleIncomingMessage(messagePayload) {
     if (interactiveId === "schedule_viewing") {
       // Check consent before allowing viewing
       if (!session.consentGiven) {
+        session.metadata = session.metadata || {};
+        session.metadata.pendingViewingProperty = "general";
         await sendConsentForViewing(from);
         return;
       }
@@ -728,6 +756,12 @@ async function handleViewingSchedule(to, scheduleData) {
 
   // Block viewing without consent
   if (!session.consentGiven) {
+    session.metadata = session.metadata || {};
+    if (scheduleData.propertyId && scheduleData.propertyId !== "unknown") {
+      session.metadata.pendingViewingProperty = scheduleData.propertyId;
+    } else {
+      session.metadata.pendingViewingProperty = "general";
+    }
     await sendConsentForViewing(to);
     return;
   }
@@ -968,8 +1002,38 @@ async function handleEscalation(to, reason) {
   await updateState(to, "ESCALATED");
   await sendTextMessage(
     to,
-    `👤 *Connecting you with a team member*\n\nI'm transferring you to one of our property consultants who'll be able to assist you further.\n\n📞 You can also reach us directly:\n• Office: ${config.company.phone}\n• WhatsApp: ${config.company.escalationWhatsApp}\n• Email: ${config.company.email}\n\n🕒 Business Hours: ${config.company.businessHours}\n\nA team member will respond shortly. Thank you for your patience! 🙏`
+    `👤 *Connecting you with a team member*\n\nI'm transferring you to one of our property consultants who'll be able to assist you further.\n\n📞 You can also reach us directly:\n• Call/WhatsApp: ${config.company.escalationWhatsApp}\n• Email: ${config.company.email}\n\n🕒 Business Hours: ${config.company.businessHours}\n\nA team member will respond shortly. Thank you for your patience! 🙏`
   );
+
+  // Send client details to agent via WhatsApp
+  try {
+    const session = await getSession(to);
+    const lead = session.leadData || {};
+    const name = lead.name || "Not provided";
+    const phone = lead.phone || to;
+    const email = lead.email || "Not provided";
+    const budget = lead.budget || "Not provided";
+    const interest = lead.propertyInterest || "Not provided";
+    const location = lead.preferredLocation || "Not provided";
+
+    const agentNumber = config.company.escalationWhatsApp.replace("+", "");
+    await sendTextMessage(
+      agentNumber,
+      `🔔 *New Client Escalation*\n\n` +
+      `👤 *Name:* ${name}\n` +
+      `📱 *Phone:* +${phone}\n` +
+      `📧 *Email:* ${email}\n` +
+      `💰 *Budget:* ${budget}\n` +
+      `🏠 *Property Interest:* ${interest}\n` +
+      `📍 *Preferred Location:* ${location}\n\n` +
+      `📝 *Reason:* ${reason}\n\n` +
+      `Please reach out to the client as soon as possible.`
+    );
+    console.log(`[Escalation] Sent client info to agent ${agentNumber}`);
+  } catch (err) {
+    console.error(`[Escalation] Failed to notify agent:`, err.message);
+  }
+
   console.log(`[Escalation] ${to} — Reason: ${reason}`);
 }
 

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice - Hustle Click Gh</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; color: #333; background: #f4f4f4; }
+    .invoice-container {
+      max-width: 800px; margin: 30px auto; background: #fff;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.1); border-radius: 8px; overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: #fff; padding: 40px; display: flex; justify-content: space-between; align-items: flex-start;
+    }
+    .header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+    .header .company-name { font-size: 14px; opacity: 0.8; margin-top: 4px; }
+    .invoice-label {
+      text-align: right;
+    }
+    .invoice-label h2 { font-size: 36px; font-weight: 300; letter-spacing: 3px; opacity: 0.9; }
+    .invoice-label .invoice-no { font-size: 14px; margin-top: 8px; opacity: 0.7; }
+    .invoice-label .invoice-date { font-size: 13px; margin-top: 4px; opacity: 0.7; }
+
+    .body { padding: 40px; }
+
+    .parties { display: flex; justify-content: space-between; margin-bottom: 40px; }
+    .party { width: 48%; }
+    .party-label { font-size: 11px; text-transform: uppercase; letter-spacing: 2px; color: #888; margin-bottom: 8px; font-weight: 600; }
+    .party-name { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .party-detail { font-size: 13px; color: #666; line-height: 1.6; }
+
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+    thead th {
+      background: #f8f9fa; padding: 14px 16px; text-align: left;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px;
+      color: #666; border-bottom: 2px solid #e9ecef;
+    }
+    thead th:last-child, tbody td:last-child { text-align: right; }
+    tbody td { padding: 16px; font-size: 14px; border-bottom: 1px solid #f0f0f0; color: #444; }
+    tbody tr:hover { background: #fafbfc; }
+
+    .totals { display: flex; justify-content: flex-end; margin-bottom: 40px; }
+    .totals-table { width: 320px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; color: #666; }
+    .totals-row.total {
+      border-top: 2px solid #1a1a2e; margin-top: 8px; padding-top: 14px;
+      font-size: 20px; font-weight: 700; color: #1a1a2e;
+    }
+
+    .payment-info {
+      background: #f8f9fa; border-radius: 8px; padding: 24px; margin-bottom: 30px;
+    }
+    .payment-info h3 {
+      font-size: 13px; text-transform: uppercase; letter-spacing: 2px;
+      color: #888; margin-bottom: 14px; font-weight: 600;
+    }
+    .payment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .payment-item { font-size: 13px; }
+    .payment-item .label { color: #999; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
+    .payment-item .value { color: #333; font-weight: 600; margin-top: 2px; }
+
+    .notes { font-size: 13px; color: #888; line-height: 1.8; border-top: 1px solid #eee; padding-top: 20px; }
+    .notes strong { color: #666; }
+
+    .footer {
+      background: #f8f9fa; padding: 20px 40px; text-align: center;
+      font-size: 12px; color: #999; border-top: 1px solid #eee;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .invoice-container { box-shadow: none; margin: 0; }
+      .no-print { display: none; }
+    }
+
+    .print-btn {
+      display: block; margin: 20px auto; padding: 12px 32px;
+      background: #1a1a2e; color: #fff; border: none; border-radius: 6px;
+      font-size: 14px; cursor: pointer; font-weight: 600; letter-spacing: 1px;
+    }
+    .print-btn:hover { background: #16213e; }
+  </style>
+</head>
+<body>
+
+  <div class="invoice-container">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1>HUSTLE CLICK GH</h1>
+        <div class="company-name">Software Development &amp; Digital Solutions</div>
+      </div>
+      <div class="invoice-label">
+        <h2>INVOICE</h2>
+        <div class="invoice-no">INV-2026-001</div>
+        <div class="invoice-date">Date: February 24, 2026</div>
+        <div class="invoice-date">Due: March 10, 2026</div>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="body">
+      <!-- Parties -->
+      <div class="parties">
+        <div class="party">
+          <div class="party-label">From</div>
+          <div class="party-name">Hustle Click Gh</div>
+          <div class="party-detail">
+            Nuaku Kwabena Muheeb<br>
+            Phone: 0592 405 403<br>
+            Email: kwabenacrys@gmail.com<br>
+            TIN: P0065820177
+          </div>
+        </div>
+        <div class="party">
+          <div class="party-label">Bill To</div>
+          <div class="party-name">Devtraco Plus Limited</div>
+          <div class="party-detail">
+            No. 8B, Sir Arku Korsah Road<br>
+            Airport Residential Area<br>
+            Accra, Ghana
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <table>
+        <thead>
+          <tr>
+            <th style="width:5%">#</th>
+            <th style="width:55%">Description</th>
+            <th style="width:15%">Qty</th>
+            <th style="width:25%">Amount (GHS)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>
+              <strong>WhatsApp AI Chatbot Development</strong><br>
+              <span style="font-size:12px;color:#888;">
+                Design, development, and deployment of an AI-powered WhatsApp chatbot for Devtraco Plus — featuring property search &amp; recommendations, lead capture &amp; qualification, viewing scheduling, CRM integration (Microsoft Dynamics 365), analytics dashboard, GDPR compliance, and rich media support (images &amp; videos). Deployed on cloud infrastructure with MongoDB Atlas database.
+              </span>
+            </td>
+            <td>1</td>
+            <td>5,000.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div class="totals">
+        <div class="totals-table">
+          <div class="totals-row">
+            <span>Project Total</span>
+            <span>GHS 5,000.00</span>
+          </div>
+          <div class="totals-row">
+            <span>Work Completed (70%)</span>
+            <span>GHS 3,500.00</span>
+          </div>
+          <div class="totals-row">
+            <span>Previously Paid</span>
+            <span>GHS 0.00</span>
+          </div>
+          <div class="totals-row">
+            <span>Initial Payment Due (50%)</span>
+            <span>GHS 2,500.00</span>
+          </div>
+          <div class="totals-row total">
+            <span>Amount Due</span>
+            <span>GHS 2,500.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Information -->
+      <div class="payment-info">
+        <h3>Payment Information</h3>
+        <div class="payment-grid">
+          <div class="payment-item">
+            <div class="label">Bank</div>
+            <div class="value">GCB Bank</div>
+          </div>
+          <div class="payment-item">
+            <div class="label">Account Name</div>
+            <div class="value">Nuaku Kwabena Muheeb</div>
+          </div>
+          <div class="payment-item">
+            <div class="label">Account Number</div>
+            <div class="value">1211010193227</div>
+          </div>
+          <div class="payment-item">
+            <div class="label">TIN</div>
+            <div class="value">P0065820177</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="notes">
+        <strong>Notes:</strong><br>
+        • This invoice covers the initial 50% payment for the project.<br>
+        • Remaining 50% (GHS 2,500.00) to be invoiced upon final delivery and acceptance.<br>
+        • Payment is due within 14 days of invoice date.<br>
+        • Thank you for your business.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      Hustle Click Gh &bull; Nuaku Kwabena Muheeb &bull; TIN: P0065820177 &bull; 0592 405 403 &bull; kwabenacrys@gmail.com
+    </div>
+  </div>
+
+  <!-- Print Button -->
+  <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+
+</body>
+</html>
