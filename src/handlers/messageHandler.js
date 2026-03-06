@@ -1002,7 +1002,7 @@ async function handleEscalation(to, reason) {
   await updateState(to, "ESCALATED");
   await sendTextMessage(
     to,
-    `👤 *Connecting you with a team member*\n\nI'm transferring you to one of our property consultants who'll be able to assist you further.\n\n📞 You can also reach us directly:\n• Call/WhatsApp: ${config.company.escalationWhatsApp}\n• Email: ${config.company.email}\n\n🕒 Business Hours: ${config.company.businessHours}\n\nA team member will respond shortly. Thank you for your patience! 🙏`
+    `👤 *Connecting you with a team member*\n\nI'm transferring you to one of our property consultants who'll be able to assist you further.\n\n📞 You can also reach us directly:\n• Call: ${config.company.phone}\n• WhatsApp: ${config.company.escalationWhatsApp}\n• Email: ${config.company.email}\n\n🕒 Business Hours: ${config.company.businessHours}\n\nA team member will respond shortly. Thank you for your patience! 🙏`
   );
 
   // Send client details to agent via WhatsApp
