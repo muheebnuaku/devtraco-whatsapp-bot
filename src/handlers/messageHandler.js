@@ -289,7 +289,8 @@ export async function handleIncomingMessage(messagePayload) {
         // Small delay so welcome message arrives first, then process the request
         setTimeout(async () => {
           try {
-            await handleIncomingMessage({ from, text: extraMessage, type: "text" });
+            const syntheticId = `name_extra_${from}_${Date.now()}`;
+            await handleIncomingMessage({ from, id: syntheticId, text: { body: extraMessage }, type: "text" });
           } catch (err) {
             console.error("[Name+Request] Error processing extra message:", err.message);
           }
