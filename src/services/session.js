@@ -218,7 +218,7 @@ async function persistSession(session) {
         consentGiven: session.consentGiven,
         metadata: session.metadata,
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   } catch (err) {
     console.error("[Session] Persist failed:", err.message);

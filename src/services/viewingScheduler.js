@@ -322,7 +322,7 @@ export async function updateViewingStatus(id, status) {
       const doc = await ViewingModel.findOneAndUpdate(
         { viewingId: id },
         { status, updatedAt: Date.now() },
-        { new: true }
+        { returnDocument: 'after' }
       ).lean();
       return doc ? docToViewing(doc) : null;
     } catch (err) {

@@ -397,7 +397,7 @@ export async function updateProperty(propertyId, updates) {
   const doc = await PropertyModel.findOneAndUpdate(
     { propertyId },
     { $set: updates },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!doc) return null;
   console.log(`[Properties] Updated: ${doc.name} (${propertyId})`);
