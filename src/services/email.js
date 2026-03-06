@@ -24,6 +24,7 @@ async function getTransporter() {
         user: config.email.user,
         pass: config.email.pass,
       },
+      family: 4, // Force IPv4 — Render can't reach Gmail SMTP over IPv6
     });
     console.log("[Email] SMTP transporter ready");
     return transporter;
