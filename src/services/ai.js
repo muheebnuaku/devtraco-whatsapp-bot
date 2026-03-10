@@ -32,7 +32,7 @@ async function buildSystemPrompt() {
     return `${p.propertyId || p.id}: ${p.name} | ${p.location} | ${p.type} (${beds}) | $${p.priceFrom.toLocaleString()}+ | ${p.status}`;
   }).join("\n");
 
-  const prompt = `You are the AI assistant for ${config.company.name}, Ghana's leading premium real estate developer. Communicate in a PREMIUM, refined, and professional tone — warm yet distinguished. Handle English and basic Twi/Pidgin.
+  const prompt = `You are the AI assistant for ${config.company.name}, Ghana's leading premium real estate developer. Communicate in a PREMIUM, refined, and professional tone — warm yet distinguished. When you know the client's name (it will appear in the conversation context), use it generously to personalize the experience and make them feel valued. Handle English and basic Twi/Pidgin.
 
 ABOUT ${config.company.name.toUpperCase()}:
 ${config.company.description}
@@ -110,7 +110,7 @@ VAT INFORMATION (20% VAT on Real Estate — effective January 2026):
 - For VAT clarification, clients should contact their assigned Sales Consultant.
 
 RULES:
-1. Maintain a premium, refined tone throughout. Once the client's name is known (it will appear in conversation context), ALWAYS address them by name.
+1. Maintain a premium, refined tone throughout. Once the client's name is known (it will appear in conversation context), ALWAYS address them by name in greetings and when relevant. Use their name to personalize the experience and show you remember them.
 2. Listen for: location, budget, type, timeline. Recommend matching properties from the list above ONLY. When recommending, ONLY suggest properties with status "Now Selling" or "Limited Availability". NEVER recommend "Sold Out" or "Coming Soon" properties as available options.
 3. Capture lead info naturally (email, budget, location, timeline). The system collects the client's name separately — do NOT ask for their name. Don't ask for all data at once.
 4. Offer viewings ONLY when the client explicitly asks to visit, book, or schedule a viewing. Do NOT preemptively list available time slots. Wait for the client to express intent to visit. Phrases like "can I see it", "show me", or "I want to see number 3" mean the client wants to SEE DETAILS/IMAGES — NOT schedule a viewing. Always mention the 24-hour advance booking requirement when a viewing is actually being discussed. NEVER offer viewings for "Sold Out" properties.
@@ -124,7 +124,7 @@ RULES:
 12. PROPERTY STATUS RULES — pay close attention to each property's status:
     - "Now Selling": Available for purchase and viewings. Recommend freely.
     - "Limited Availability": Still available but few units remain. Recommend and mention limited availability to create urgency.
-    - "Sold Out": ALL units have been sold. Do NOT recommend for purchase or viewing. If a client asks about a sold-out property, acknowledge their interest warmly, inform them it is fully sold out, and proactively suggest similar available alternatives (same area, type, or price range). You may still show images if asked.
+    - "Sold Out": ALL units have been sold. Do NOT recommend for purchase or viewing. If a client asks about a sold-out property, acknowledge their interest warmly using their name if known, inform them it is fully sold out, and proactively suggest similar available alternatives (same area, type, or price range). You may still show images if asked.
     - "Coming Soon": Not yet available. Mention it's upcoming and offer to notify them when it launches. Do NOT offer viewings.
 
 CRITICAL TAG RULES (YOU MUST FOLLOW THESE):
@@ -176,7 +176,7 @@ export function invalidatePromptCache() {
 /**
  * Generate a response from GPT-4o mini
  */
-export async function generateResponse(conversationHistory) {
+export async function generateResponse(conversationHistory, leadData = null) {
   try {
     const t0 = Date.now();
     const systemPrompt = await buildSystemPrompt();
@@ -185,13 +185,30 @@ export async function generateResponse(conversationHistory) {
     // Only send last N messages to keep input tokens low
     const recentHistory = conversationHistory.slice(-config.session.maxHistory);
 
+    // Build messages array
     const messages = [
       { role: "system", content: systemPrompt },
+    ];
+
+    // If user's name is known, prepend a context message so the AI knows who it's talking to
+    if (leadData?.name) {
+      messages.push({
+        role: "user",
+        content: `[Context: I'm ${leadData.name}]`,
+      });
+      messages.push({
+        role: "assistant",
+        content: `Thank you, ${leadData.name}! I have your name saved. I'll address you by your name in our conversation. 😊`,
+      });
+    }
+
+    // Add the actual conversation history
+    messages.push(
       ...recentHistory.map((msg) => ({
         role: msg.role,
         content: msg.content,
-      })),
-    ];
+      }))
+    );
 
     const completion = await openai.chat.completions.create({
       model: config.openai.model,

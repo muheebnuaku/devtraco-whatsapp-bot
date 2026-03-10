@@ -519,7 +519,7 @@ export async function handleIncomingMessage(messagePayload) {
  * Full AI response with structured data
  */
 async function generateAIResponseFull(from, session) {
-  const result = await generateResponse(session.history);
+  const result = await generateResponse(session.history, session.leadData);
   await addMessage(from, "assistant", result.text);
   return result;
 }
@@ -654,6 +654,8 @@ function isExplicitImageRequest(text) {
   return /\b(show|send|see|view|get)\b.*\b(image|images|photo|photos|picture|pictures|pic|pics)\b/i.test(lower)
     || /\b(image|images|photo|photos|picture|pictures|pic|pics)\b.*\b(please|pls)?\b/i.test(lower)
     || /^(images?|photos?|pictures?|pics?)$/i.test(lower)
+    || /\b(?:any|all)\b.*\b(images?|photos?|pictures?|pics?)\b/i.test(lower)
+    || /\b(images?|photos?|pictures?|pics?)\b\s*\b(?:any|all|please|pls)\b/i.test(lower)
     || /\bi\s+(mean|want|need)\s+(an?\s+)?(image|photo|picture|pic)/i.test(lower);
 }
 
