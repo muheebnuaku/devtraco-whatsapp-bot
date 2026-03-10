@@ -20,6 +20,7 @@ import {
 import { getAllViewings, getPendingViewingCount, updateViewingStatus, formatViewingConfirmed, formatViewingCancelled, deleteViewing, deleteAllViewings, getAvailableSlots } from "../services/viewingScheduler.js";
 import { sendTextMessage } from "../services/whatsapp.js";
 import { getCRMSyncStats, getCRMSyncLog, syncLeadToCRM } from "../services/crmSync.js";
+import { sendViewingConfirmationEmail, sendTestEmail } from "../services/email.js";
 import { invalidatePromptCache } from "../services/ai.js";
 import Image from "../db/models/Image.js";
 import Video from "../db/models/Video.js";
@@ -316,6 +317,19 @@ router.patch("/viewings/:id", async (req, res) => {
  */
 router.get("/crm/stats", (req, res) => {
   res.json(getCRMSyncStats());
+});
+
+/**
+ * POST /api/email/test — Send a test email to verify SMTP config
+ * Body: { "to": "recipient@example.com" }
+ */
+router.post("/email/test", async (req, res) => {
+  const to = req.body?.to;
+  if (!to || !/^[\w.+\-]+@[\w\-]+\.[\w.\-]+$/.test(to)) {
+    return res.status(400).json({ error: "Provide a valid 'to' email address" });
+  }
+  const result = await sendTestEmail(to);
+  res.status(result.sent ? 200 : 502).json(result);
 });
 
 /**

@@ -6,17 +6,19 @@ import config from "../config/index.js";
  */
 
 let transporter = null;
+let transporterVerified = false;
 
 async function getTransporter() {
-  if (transporter) return transporter;
-  if (!config.email?.host) {
+  if (transporter && transporterVerified) return transporter;
+  if (!config.email?.host || !config.email?.user || !config.email?.pass) {
+    console.warn("[Email] SMTP not configured — missing SMTP_HOST, SMTP_USER, or SMTP_PASS");
     return null;
   }
 
   try {
     // Dynamic import so nodemailer is optional
     const nodemailer = await import("nodemailer");
-    transporter = nodemailer.default.createTransport({
+    const t = nodemailer.default.createTransport({
       host: config.email.host,
       port: config.email.port,
       secure: config.email.port === 465,
@@ -26,11 +28,46 @@ async function getTransporter() {
       },
       family: 4, // Force IPv4 — Render can't reach Gmail SMTP over IPv6
     });
-    console.log("[Email] SMTP transporter ready");
+
+    // Verify connection / credentials before caching — surfaces auth errors early
+    await t.verify();
+    transporter = t;
+    transporterVerified = true;
+    console.log(`[Email] SMTP transporter verified — ${config.email.host}:${config.email.port} as ${config.email.user}`);
     return transporter;
   } catch (err) {
-    console.warn("[Email] Nodemailer not available:", err.message);
+    transporter = null;
+    transporterVerified = false;
+    console.error(`[Email] SMTP verification failed: ${err.message}`);
+    console.error(`[Email] Check SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_PORT in .env`);
+    if (config.email.host === "smtp.gmail.com") {
+      console.error(`[Email] Gmail tip: use an App Password (not your account password). Enable it at myaccount.google.com → Security → 2-Step Verification → App passwords`);
+    }
     return null;
+  }
+}
+
+/**
+ * Send a test email to verify SMTP configuration.
+ */
+export async function sendTestEmail(toEmail) {
+  const mailer = await getTransporter();
+  if (!mailer) {
+    return { sent: false, reason: "SMTP not configured or credentials invalid — check server logs" };
+  }
+  try {
+    const info = await mailer.sendMail({
+      from: `"Devtraco Plus" <${config.email.from || config.email.user}>`,
+      to: toEmail,
+      subject: "Devtraco Plus — SMTP Test",
+      text: "This is a test email from the Devtraco Plus WhatsApp bot. If you received this, SMTP is working correctly.",
+      html: "<p>This is a <strong>test email</strong> from the Devtraco Plus WhatsApp bot.</p><p>If you received this, SMTP is working correctly. ✅</p>",
+    });
+    console.log(`[Email] Test sent to ${toEmail} — messageId: ${info.messageId}`);
+    return { sent: true, messageId: info.messageId };
+  } catch (err) {
+    console.error(`[Email] Test send failed:`, err.message);
+    return { sent: false, reason: err.message };
   }
 }
 
