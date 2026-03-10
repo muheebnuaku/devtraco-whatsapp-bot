@@ -320,20 +320,9 @@ export async function handleIncomingMessage(messagePayload) {
       await sendTextMessage(from, `Is there anything else I can help you with? 😊`);
 
       // Send confirmation email in background (don't block the response)
-      const viewingId = session.metadata?.lastViewingId;
-      if (viewingId) {
-        (async () => {
-          try {
-            const viewing = await getViewingById(viewingId);
-            if (viewing) {
-              const emailResult = await sendViewingConfirmationEmail(email, viewing);
-              console.log(`[Email] Confirmation to ${email}: ${emailResult.sent ? 'sent' : 'failed'}`);
-            }
-          } catch (err) {
-            console.error(`[Email] Background send failed:`, err.message);
-          }
-        })();
-      }
+      // NOTE: Auto-email disabled — agent handles confirmation manually
+      // const viewingId = session.metadata?.lastViewingId;
+      // if (viewingId) { ... }
       return;
     }
 
@@ -992,13 +981,13 @@ async function confirmAndCreateViewing(to, pendingData) {
         await sendTextMessage(to, formatViewingConfirmed(confirmed));
         console.log(`[Viewing] Auto-confirmed ${viewing.viewingId} for ${to}`);
 
-        // Use a fresh session so we have the latest lead data (e.g. email already provided)
-        const freshSession = await getSession(to);
+        // NOTE: Auto-email disabled — agent handles confirmation manually
+        // Send email if we have one\n        // if (freshSession.leadData?.email && freshSession.leadData.email !== "Not provided") {
+        //   await sendViewingConfirmationEmail(freshSession.leadData.email, confirmed);
+        // }
 
-        // Send email if we have one
-        if (freshSession.leadData?.email && freshSession.leadData.email !== "Not provided") {
-          await sendViewingConfirmationEmail(freshSession.leadData.email, confirmed);
-        }
+        // Use a fresh session to get latest lead data (e.g. email already provided)
+        const freshSession = await getSession(to);
 
         // Ask for email after confirmation if not yet collected
         if (!freshSession.leadData?.email || freshSession.leadData.email === "Not provided") {
