@@ -58,8 +58,17 @@ async function getAccessToken() {
     logSync("AUTH", "SUCCESS", "Token acquired", { expiresIn: res.data.expires_in });
     return accessToken;
   } catch (err) {
-    logSync("AUTH", "ERROR", "Failed to acquire token", { error: err.message });
-    throw new Error(`Dynamics 365 auth failed: ${err.message}`);
+    const azureDetail = err.response?.data?.error_description
+      || err.response?.data?.error
+      || JSON.stringify(err.response?.data)
+      || "";
+    logSync("AUTH", "ERROR", "Failed to acquire token", {
+      error: err.message,
+      azureError: azureDetail,
+      status: err.response?.status,
+    });
+    const detailMsg = azureDetail ? ` — ${azureDetail}` : "";
+    throw new Error(`Dynamics 365 auth failed: ${err.message}${detailMsg}`);
   }
 }
 
