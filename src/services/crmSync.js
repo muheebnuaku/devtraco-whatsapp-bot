@@ -122,47 +122,33 @@ export async function syncLeadToCRM(leadReport) {
 
   const syncId = `lead-${leadReport.phone}-${Date.now()}`;
 
-  try {
-    // 1. Check if contact already exists (by phone)
-    const existing = await findContactByPhone(leadReport.phone);
+  // 1. Check if contact already exists (by phone)
+  const existing = await findContactByPhone(leadReport.phone);
 
-    let contactId;
-    if (existing) {
-      // Update existing contact
-      contactId = existing.contactid;
-      await updateContact(contactId, leadReport);
-      logSync("CONTACT", "UPDATED", `Updated contact ${contactId}`, { phone: leadReport.phone });
-    } else {
-      // Create new contact
-      contactId = await createContact(leadReport);
-      logSync("CONTACT", "CREATED", `Created contact ${contactId}`, { phone: leadReport.phone });
-    }
-
-    // 2. Create or update Lead entity
-    const existingLead = await findLeadByPhone(leadReport.phone);
-    let leadId;
-    if (existingLead) {
-      leadId = existingLead.leadid;
-      await updateLead(leadId, leadReport);
-      logSync("LEAD", "UPDATED", `Updated lead ${leadId}`, { phone: leadReport.phone, score: leadReport.score });
-    } else {
-      leadId = await createLead(leadReport, contactId);
-      logSync("LEAD", "CREATED", `Created lead ${leadId}`, { phone: leadReport.phone, score: leadReport.score });
-    }
-
-    console.log(`[CRM] Lead synced — Contact: ${contactId}, Lead: ${leadId}`);
-    return { contactId, leadId };
-  } catch (err) {
-    logSync("LEAD", "ERROR", `Failed to sync lead: ${err.message}`, {
-      phone: leadReport.phone,
-      syncId,
-    });
-    console.error(`[CRM] Lead sync failed for ${leadReport.phone}:`, err.message);
-
-    // Queue for retry
-    addToRetryQueue({ type: "lead", data: leadReport, syncId, attempts: 0 });
-    return null;
+  let contactId;
+  if (existing) {
+    contactId = existing.contactid;
+    await updateContact(contactId, leadReport);
+    logSync("CONTACT", "UPDATED", `Updated contact ${contactId}`, { phone: leadReport.phone });
+  } else {
+    contactId = await createContact(leadReport);
+    logSync("CONTACT", "CREATED", `Created contact ${contactId}`, { phone: leadReport.phone });
   }
+
+  // 2. Create or update Lead entity
+  const existingLead = await findLeadByPhone(leadReport.phone);
+  let leadId;
+  if (existingLead) {
+    leadId = existingLead.leadid;
+    await updateLead(leadId, leadReport);
+    logSync("LEAD", "UPDATED", `Updated lead ${leadId}`, { phone: leadReport.phone, score: leadReport.score });
+  } else {
+    leadId = await createLead(leadReport, contactId);
+    logSync("LEAD", "CREATED", `Created lead ${leadId}`, { phone: leadReport.phone, score: leadReport.score });
+  }
+
+  console.log(`[CRM] Lead synced — Contact: ${contactId}, Lead: ${leadId}`);
+  return { contactId, leadId };
 }
 
 /**
@@ -316,60 +302,52 @@ async function updateLead(leadId, lead) {
 export async function syncViewingToCRM(viewing) {
   if (!config.dynamics.enabled) return null;
 
-  try {
-    const appointmentData = {
-      subject: `Property Viewing — ${viewing.propertyName}`,
-      description: [
-        `Viewing Ref: ${viewing.id}`,
-        `Property: ${viewing.propertyName}`,
-        `Contact: ${viewing.name}`,
-        `Phone: ${viewing.phone}`,
-        `Email: ${viewing.email}`,
-        `Preferred Date: ${viewing.preferredDate}`,
-        `Preferred Time: ${viewing.preferredTime}`,
-        `Notes: ${viewing.notes || "None"}`,
-        `Status: ${viewing.status}`,
-        `Source: WhatsApp AI Chatbot`,
-      ].join("\n"),
-      location: "Devtraco Plus Sales Office",
-      scheduledstart: parseViewingDateTime(viewing.preferredDate, viewing.preferredTime),
-      scheduledend: parseViewingDateTimeEnd(viewing.preferredDate, viewing.preferredTime),
-    };
+  const appointmentData = {
+    subject: `Property Viewing — ${viewing.propertyName}`,
+    description: [
+      `Viewing Ref: ${viewing.id}`,
+      `Property: ${viewing.propertyName}`,
+      `Contact: ${viewing.name}`,
+      `Phone: ${viewing.phone}`,
+      `Email: ${viewing.email}`,
+      `Preferred Date: ${viewing.preferredDate}`,
+      `Preferred Time: ${viewing.preferredTime}`,
+      `Notes: ${viewing.notes || "None"}`,
+      `Status: ${viewing.status}`,
+      `Source: WhatsApp AI Chatbot`,
+    ].join("\n"),
+    location: "Devtraco Plus Sales Office",
+    scheduledstart: parseViewingDateTime(viewing.preferredDate, viewing.preferredTime),
+    scheduledend: parseViewingDateTimeEnd(viewing.preferredDate, viewing.preferredTime),
+  };
 
-    // Link to contact if we can find one
-    const contact = await findContactByPhone(viewing.phone);
-    if (contact) {
-      appointmentData["regardingobjectid_contact@odata.bind"] = `/contacts(${contact.contactid})`;
-    }
-
-    const res = await dynamicsApi("POST", "appointments", appointmentData);
-
-    const appointmentId = res.data?.activityid ||
-      res.headers?.["odata-entityid"]?.match(/appointments\(([^)]+)\)/)?.[1] || null;
-
-    logSync("APPOINTMENT", "CREATED", `Viewing ${viewing.id} synced`, {
-      appointmentId,
-      property: viewing.propertyName,
-    });
-
-    console.log(`[CRM] Viewing synced — Appointment: ${appointmentId}`);
-    return appointmentId;
-  } catch (err) {
-    logSync("APPOINTMENT", "ERROR", `Failed to sync viewing: ${err.message}`, {
-      viewingId: viewing.id,
-    });
-    console.error(`[CRM] Viewing sync failed for ${viewing.id}:`, err.message);
-    addToRetryQueue({ type: "viewing", data: viewing, attempts: 0 });
-    return null;
+  // Link to contact if we can find one
+  const contact = await findContactByPhone(viewing.phone);
+  if (contact) {
+    appointmentData["regardingobjectid_contact@odata.bind"] = `/contacts(${contact.contactid})`;
   }
+
+  const res = await dynamicsApi("POST", "appointments", appointmentData);
+
+  const appointmentId = res.data?.activityid ||
+    res.headers?.["odata-entityid"]?.match(/appointments\(([^)]+)\)/)?.[1] || null;
+
+  logSync("APPOINTMENT", "CREATED", `Viewing ${viewing.id} synced`, {
+    appointmentId,
+    property: viewing.propertyName,
+  });
+
+  console.log(`[CRM] Viewing synced — Appointment: ${appointmentId}`);
+  return appointmentId;
 }
 
 // ───────── Retry Queue ─────────
 
 /**
  * Add a failed sync to the retry queue.
+ * Exported so callers (viewingScheduler, leadCapture) can queue first-time failures.
  */
-function addToRetryQueue(item) {
+export function addToRetryQueue(item) {
   if (item.attempts >= 3) {
     logSync("RETRY", "ABANDONED", `Gave up after 3 attempts: ${item.type}`, item.data);
     return;
@@ -405,9 +383,14 @@ async function processRetryQueue() {
       } else if (item.type === "viewing") {
         await syncViewingToCRM(item.data);
       }
+      // Only log success if we get here without throwing
       logSync("RETRY", "SUCCESS", `Retried ${item.type} successfully`, { attempts: item.attempts });
     } catch (err) {
-      addToRetryQueue(item);
+      // Log the error and re-queue (attempt count preserved from item.attempts)
+      logSync(item.type === "viewing" ? "APPOINTMENT" : "LEAD", "ERROR",
+        `Failed to sync ${item.type}: ${err.message}`,
+        item.type === "viewing" ? { viewingId: item.data?.id || item.data?.viewingId } : { phone: item.data?.phone });
+      addToRetryQueue(item); // attempts already incremented above
     }
   }
 

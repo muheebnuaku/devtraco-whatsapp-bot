@@ -1,7 +1,7 @@
 import config from "../config/index.js";
 import { isDBConnected } from "../db/connection.js";
 import ViewingModel from "../db/models/Viewing.js";
-import { syncViewingToCRM } from "./crmSync.js";
+import { syncViewingToCRM, addToRetryQueue as queueCRMRetry } from "./crmSync.js";
 
 /**
  * Viewing scheduler — MongoDB-backed with in-memory fallback.
@@ -283,9 +283,10 @@ export async function createViewing({ userId, propertyId, propertyName, preferre
   console.log(`[Viewing] Created ${id} for ${userId} — ${propertyName}`);
 
   // Sync to Dynamics 365 CRM (async, non-blocking)
-  syncViewingToCRM(viewing).catch((err) =>
-    console.error(`[CRM] Viewing sync failed for ${id}:`, err.message)
-  );
+  syncViewingToCRM(viewing).catch((err) => {
+    console.error(`[CRM] Viewing sync failed for ${id}:`, err.message);
+    queueCRMRetry({ type: "viewing", data: viewing, attempts: 0 });
+  });
 
   return viewing;
 }
