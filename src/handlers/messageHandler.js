@@ -843,6 +843,8 @@ async function handleViewingSchedule(to, scheduleData) {
           id: scheduleData.propertyId || "unknown",
           name: scheduleData.propertyName || "Not specified",
         };
+        // Explicitly persist metadata so time-only replies can be intercepted
+        await updateLeadData(to, {});
       }
       await addMessage(to, "assistant", `⚠️ ${reason}`);
       return;
