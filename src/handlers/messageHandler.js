@@ -20,9 +20,10 @@ const BASE_URL = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || `htt
 
 // --- Agent session keep-alive ---
 // WhatsApp only allows interactive/button messages within 24h of last agent message.
-// When the agent says "hi", we start 23-hour pings for 7 days to keep the window open.
+// Every 22h we send the agent an activation request. When they reply, the 24h window reopens.
+// This continues for up to 7 days after their initial "hi".
 const AGENT_SESSION_DAYS = 7;
-const KEEP_ALIVE_INTERVAL_MS = 23 * 60 * 60 * 1000; // 23 hours
+const KEEP_ALIVE_INTERVAL_MS = 22 * 60 * 60 * 1000; // 22 hours
 
 let agentKeepAliveTimer = null;
 let agentSessionExpiry = 0; // epoch ms — 0 means inactive
@@ -35,23 +36,30 @@ function startAgentKeepAlive() {
     if (Date.now() >= agentSessionExpiry) {
       clearInterval(agentKeepAliveTimer);
       agentKeepAliveTimer = null;
-      console.log("[Agent] Keep-alive session expired — agent must send 'hi' again to reactivate");
+      console.log("[Agent] 7-day keep-alive session expired");
       return;
     }
     const agentNumber = config.company.escalationWhatsApp.replace("+", "");
     const daysLeft = Math.ceil((agentSessionExpiry - Date.now()) / (24 * 60 * 60 * 1000));
     try {
+      // Try interactive button first (works if agent replied within last 24h)
+      await sendButtonMessage(
+        agentNumber,
+        `🔔 *Devtraco Bot — Session Activation*\n\nTap the button below to keep your client escalation alerts active.\n\n⏳ Session expires in *${daysLeft} day${daysLeft !== 1 ? "s" : ""}*.`,
+        [{ id: "agent_keepalive_ack", title: "✅ Keep Active" }],
+        "Stay Active"
+      );
+    } catch {
+      // 24h window closed — send plain text asking agent to reply
       await sendTextMessage(
         agentNumber,
-        `🤖 *Devtraco Bot — Daily Session Ping*\n\nYour notification session is active. 📲 You'll receive client escalation alerts with action buttons.\n\n⏳ Session expires in *${daysLeft} day${daysLeft !== 1 ? "s" : ""}*.\n\nReply *hi* at any time to reset the 7-day window.`
+        `🔔 *Devtraco Bot — Session Activation Required*\n\nReply to this message to keep your client escalation alerts active with action buttons.\n\n⏳ Session expires in *${daysLeft} day${daysLeft !== 1 ? "s" : ""}*.\n\nIf you don't reply, you'll still receive client alerts as plain text messages.`
       );
-      console.log(`[Agent] Sent 23h keep-alive ping — ${daysLeft} day(s) remaining`);
-    } catch (err) {
-      console.warn("[Agent] Keep-alive ping failed:", err.message);
     }
+    console.log(`[Agent] Sent 22h activation request — ${daysLeft} day(s) remaining`);
   }, KEEP_ALIVE_INTERVAL_MS);
 
-  console.log(`[Agent] Keep-alive started — session active for ${AGENT_SESSION_DAYS} days`);
+  console.log(`[Agent] Keep-alive started — activation requests every 22h for ${AGENT_SESSION_DAYS} days`);
 }
 
 // --- Message deduplication (prevents duplicate processing from webhook retries) ---
@@ -99,6 +107,10 @@ export async function handleIncomingMessage(messagePayload) {
       if (interactiveId.startsWith("escalation_later_")) {
         const clientNumber = interactiveId.replace("escalation_later_", "");
         await handleAgentResponse(clientNumber, "later", agentNumber);
+        return;
+      }
+      if (interactiveId === "agent_keepalive_ack") {
+        await sendTextMessage(agentNumber, `✅ Session activated! You'll receive client escalation alerts with action buttons for the next 24 hours. I'll send another activation request before it expires.`);
         return;
       }
     }
