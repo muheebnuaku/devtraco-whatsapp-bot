@@ -20,8 +20,8 @@ const config = {
   openai: {
     apiKey: process.env.OPENAI_API_KEY,
     model: "gpt-4o-mini",
-    maxTokens: 500,     // bot replies are short — keeps generation fast
-    temperature: 0.5,   // slightly lower for faster, more focused replies
+    maxTokens: 600,     // slightly higher for more complete, friendly replies
+    temperature: 0.7,   // warmer, more natural and conversational tone
   },
 
   // Session

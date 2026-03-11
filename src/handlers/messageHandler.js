@@ -92,7 +92,8 @@ export async function handleIncomingMessage(messagePayload) {
     return;
   }
 
-  if (command === "/agent" || command === "speak to agent" || command === "human agent") {
+  const speakToAgentCmd = /^(?:\/agent|speak\s+to\s+(?:an?\s+)?agent|human\s+agent|talk\s+to\s+(?:an?\s+)?agent|connect\s+(?:me\s+)?to\s+(?:an?\s+)?agent|can\s+i\s+speak\s+to\s+(?:an?\s+)?agent|i\s+(?:want|need)\s+(?:to\s+speak\s+to\s+)?(?:an?\s+)?(?:agent|human|person)|get\s+(?:a\s+)?human|real\s+(?:agent|person))$/i;
+  if (speakToAgentCmd.test(command)) {
     await handleEscalation(from, "Customer requested human agent");
     return;
   }
@@ -516,12 +517,8 @@ export async function handleIncomingMessage(messagePayload) {
   const updatedSession = await getSession(from);
   const hasEnoughDepth = updatedSession.history.length >= 10;
   if (shouldAutoEscalate(updatedSession) && updatedSession.state !== "ESCALATED" && hasEnoughDepth) {
-    await updateState(from, "ESCALATED");
     setTimeout(async () => {
-      await sendTextMessage(
-        from,
-        "🌟 Great news! Based on our conversation, I'd love to connect you with one of our property consultants who can give you more personalized assistance. A team member will reach out to you shortly!"
-      );
+      await handleEscalation(from, "Auto-escalation: Hot lead with high engagement");
     }, 2000);
     console.log(`[Escalation] Auto-escalating HOT lead: ${from}`);
   }
@@ -1099,13 +1096,15 @@ async function handleEscalation(to, reason) {
     reason,
     timestamp: Date.now(),
   };
+  // Persist escalation metadata to DB
+  await updateLeadData(to, {});
 
   await sendTextMessage(
     to,
     `👤 *Connecting you with a team member*\n\nI'm transferring you to one of our property consultants who'll be able to assist you further.\n\n📞 You can also reach us directly:\n• Call: ${config.company.phone}\n• WhatsApp: ${config.company.escalationWhatsApp}\n• Email: ${config.company.email}\n\n🕒 Business Hours: ${config.company.businessHours}\n\nA team member will respond shortly. Thank you for your patience! 🙏`
   );
 
-  // Send client details to agent via WhatsApp with action buttons
+  // Notify agent — always send plain text first (guaranteed delivery regardless of 24h window)
   try {
     const lead = session.leadData || {};
     const name = lead.name || "Not provided";
@@ -1125,29 +1124,27 @@ async function handleEscalation(to, reason) {
       `💰 *Budget:* ${budget}\n` +
       `🏠 *Property Interest:* ${interest}\n` +
       `📍 *Preferred Location:* ${location}\n\n` +
-      `📝 *Reason:* ${reason}`;
+      `📝 *Reason:* ${reason}\n\n` +
+      `Reply to the client directly on WhatsApp: wa.me/${phone}`;
 
-    // Try sending buttons first (works if agent has messaged bot within 24h)
-    // If that fails, fall back to template message
+    // Step 1: Plain text message — always delivered, no 24h window restriction
+    await sendTextMessage(agentNumber, clientInfo);
+
+    // Step 2: Try adding interactive response buttons (only works within 24h window)
     try {
       await sendButtonMessage(
         agentNumber,
-        clientInfo,
+        `Tap to update client status:`,
         [
-          { id: `escalation_respond_${to}`, title: "✅ Responded" },
-          { id: `escalation_later_${to}`, title: "⏰ Later" },
+          { id: `escalation_respond_${to}`, title: "Responded" },
+          { id: `escalation_later_${to}`, title: "Later" },
         ],
-        "Client Escalation"
+        "Quick Actions"
       );
-    } catch (freeFormErr) {
-      console.log(`[Escalation] Buttons failed, trying template...`);
-      try {
-        await sendTemplateMessage(agentNumber, "hello_world", "en_US");
-      } catch (templateErr) {
-        console.error(`[Escalation] Template also failed:`, templateErr.message);
-      }
+    } catch (btnErr) {
+      console.log(`[Escalation] Buttons unavailable (outside 24h window) — plain text delivered`);
     }
-    console.log(`[Escalation] Sent client info to agent ${agentNumber}`);
+    console.log(`[Escalation] Notified agent ${agentNumber} about client ${to}`);
   } catch (err) {
     console.error(`[Escalation] Failed to notify agent:`, err.response?.data || err.message);
   }
@@ -1168,6 +1165,7 @@ async function handleAgentResponse(clientNumber, action, agentNumber) {
       status: "responded",
       respondedAt: Date.now(),
     };
+    await updateLeadData(clientNumber, {}); // persist
     await updateState(clientNumber, "ACTIVE");
     await sendTextMessage(agentNumber, `✅ Noted! Client +${clientNumber} marked as attended to.`);
     console.log(`[Escalation] Agent responded to client ${clientNumber}`);
@@ -1177,6 +1175,7 @@ async function handleAgentResponse(clientNumber, action, agentNumber) {
       ...session.metadata.escalation,
       status: "awaiting_agent",
     };
+    await updateLeadData(clientNumber, {}); // persist
     await sendTextMessage(agentNumber, `⏰ Noted! Client +${clientNumber} is still awaiting your response.`);
     console.log(`[Escalation] Agent deferred client ${clientNumber}`);
   }
