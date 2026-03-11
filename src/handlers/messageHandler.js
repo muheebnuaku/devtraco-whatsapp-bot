@@ -18,6 +18,42 @@ import config from "../config/index.js";
 // Base URL for serving uploaded images (needed for WhatsApp absolute URLs)
 const BASE_URL = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || `http://localhost:${config.port}`;
 
+// --- Agent session keep-alive ---
+// WhatsApp only allows interactive/button messages within 24h of last agent message.
+// When the agent says "hi", we start 23-hour pings for 7 days to keep the window open.
+const AGENT_SESSION_DAYS = 7;
+const KEEP_ALIVE_INTERVAL_MS = 23 * 60 * 60 * 1000; // 23 hours
+
+let agentKeepAliveTimer = null;
+let agentSessionExpiry = 0; // epoch ms — 0 means inactive
+
+function startAgentKeepAlive() {
+  if (agentKeepAliveTimer) clearInterval(agentKeepAliveTimer);
+  agentSessionExpiry = Date.now() + AGENT_SESSION_DAYS * 24 * 60 * 60 * 1000;
+
+  agentKeepAliveTimer = setInterval(async () => {
+    if (Date.now() >= agentSessionExpiry) {
+      clearInterval(agentKeepAliveTimer);
+      agentKeepAliveTimer = null;
+      console.log("[Agent] Keep-alive session expired — agent must send 'hi' again to reactivate");
+      return;
+    }
+    const agentNumber = config.company.escalationWhatsApp.replace("+", "");
+    const daysLeft = Math.ceil((agentSessionExpiry - Date.now()) / (24 * 60 * 60 * 1000));
+    try {
+      await sendTextMessage(
+        agentNumber,
+        `🤖 *Devtraco Bot — Daily Session Ping*\n\nYour notification session is active. 📲 You'll receive client escalation alerts with action buttons.\n\n⏳ Session expires in *${daysLeft} day${daysLeft !== 1 ? "s" : ""}*.\n\nReply *hi* at any time to reset the 7-day window.`
+      );
+      console.log(`[Agent] Sent 23h keep-alive ping — ${daysLeft} day(s) remaining`);
+    } catch (err) {
+      console.warn("[Agent] Keep-alive ping failed:", err.message);
+    }
+  }, KEEP_ALIVE_INTERVAL_MS);
+
+  console.log(`[Agent] Keep-alive started — session active for ${AGENT_SESSION_DAYS} days`);
+}
+
 // --- Message deduplication (prevents duplicate processing from webhook retries) ---
 const recentMessageIds = new Set();
 const DEDUP_TTL = 60_000; // 60 seconds
@@ -49,6 +85,9 @@ export async function handleIncomingMessage(messagePayload) {
   // --- Agent message handling ---
   const agentNumber = config.company.escalationWhatsApp.replace("+", "");
   if (from === agentNumber) {
+    // Any message from agent refreshes/starts the 7-day keep-alive session
+    startAgentKeepAlive();
+
     // Handle interactive button replies from the agent
     if (type === "interactive") {
       const interactiveId = interactive?.button_reply?.id || "";
@@ -63,7 +102,20 @@ export async function handleIncomingMessage(messagePayload) {
         return;
       }
     }
-    console.log(`[Agent] Message from agent ${from} — no action needed`);
+
+    // Respond to greetings with session confirmation
+    const agentGreeting = /^(hi|hello|hey|good\s*(?:morning|afternoon|evening)|yo|sup|howdy)[\s!.]*$/i;
+    if (agentGreeting.test(text.trim())) {
+      const expiryDate = new Date(agentSessionExpiry);
+      const expiryStr = expiryDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+      await sendTextMessage(
+        agentNumber,
+        `👋 Hello! I'm your Devtraco property bot assistant.\n\n✅ *Notification session activated for 7 days!*\nYou'll receive client escalation alerts with interactive buttons until *${expiryStr}*.\n\nI'll send you a daily ping to keep the session alive. Reply *hi* anytime to reset the 7-day window.\n\n📲 You're all set — I'll alert you when clients need assistance!`
+      );
+      return;
+    }
+
+    console.log(`[Agent] Message from agent — keep-alive refreshed`);
     return;
   }
 
