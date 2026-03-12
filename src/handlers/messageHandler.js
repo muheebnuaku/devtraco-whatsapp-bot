@@ -515,8 +515,9 @@ export async function handleIncomingMessage(messagePayload) {
   const recentlyShown = lastButtons &&
     lastButtons.propertyId === aiResult.showProperty &&
     (Date.now() - lastButtons.time) < 5 * 60 * 1000;
-  // Also suppress if a viewing was recently booked for this property
-  const viewingJustBooked = !!session.metadata?.lastViewingId;
+  // Also suppress if a viewing was recently booked (within 2 hours) — prevents button/image re-send
+  // immediately after a booking, but allows returning clients to see property details normally.
+  const viewingJustBooked = !!(session.metadata?.lastViewingTime && (Date.now() - session.metadata.lastViewingTime) < 2 * 60 * 60 * 1000);
   // Allow re-sending images when user explicitly asks for them
   const suppressPropertyUI = skipMedia || isScheduling || (recentlyShown && !userExplicitlyAskedForImages) || viewingJustBooked;
 
@@ -1010,6 +1011,8 @@ async function confirmAndCreateViewing(to, pendingData) {
         id: pendingData.propertyId || "unknown",
         name: pendingData.propertyName || "Not specified",
       };
+      // Persist so time-only replies are correctly intercepted
+      await updateLeadData(to, {});
     }
     await addMessage(to, "assistant", `⚠️ ${viewing.reason}`);
     return;
@@ -1022,6 +1025,7 @@ async function confirmAndCreateViewing(to, pendingData) {
   session.metadata.suggestedDate = null;
   session.metadata.suggestedProperty = null;
   session.metadata.lastViewingId = viewing.viewingId;
+  session.metadata.lastViewingTime = Date.now();
 
   const clientName = viewing.name !== "Not provided" ? viewing.name : "Valued Client";
   const dateDisplay = formatDateNice(viewing.preferredDate);

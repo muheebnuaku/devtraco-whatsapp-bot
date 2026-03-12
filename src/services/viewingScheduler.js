@@ -246,7 +246,7 @@ export async function createViewing({ userId, propertyId, propertyName, preferre
         ? `Available slots for *${formatDateNice(resolvedDate)}*:\n${slots.map(s => `• ${formatTimeNice(s)}`).join("\n")}`
         : `No slots available on ${formatDateNice(resolvedDate)}. Please choose another date.`;
       console.log(`[Viewing] Rejected — slot ${resolvedTime} on ${resolvedDate} not available`);
-      return { rejected: true, reason: `The ${formatTimeNice(resolvedTime)} slot on ${formatDateNice(resolvedDate)} is not available.\n\n${slotText}` };
+      return { rejected: true, reason: `The ${formatTimeNice(resolvedTime)} slot on ${formatDateNice(resolvedDate)} is not available.\n\n${slotText}`, suggestedDate: resolvedDate };
     }
   }
 
