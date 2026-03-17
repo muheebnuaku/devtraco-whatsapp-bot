@@ -83,7 +83,7 @@ const config = {
       "Devtraco Plus is an industry leading real estate developer that has successfully created a unique niche for its exclusive premium quality housing units in prime areas of Accra, Ghana. Carved out of the well-known echelons of the Devtraco brand, our company promises nothing but excellence in delivery and service. All our developments possess a signature style and character, expertly designed to effectively function with modern finishings, and built with materials that reflect our commitment to quality. On offer are suites, studios, 1-2-3 bedroom apartments, and 5 bedroom townhouses for sale and rent in Accra, Ghana.",
     website: "https://devtracoplus.com",
     phone: "+233270000004",           // Office contact
-    escalationWhatsApp: "+233204800001", // Escalation WhatsApp
+    escalationWhatsApp: "+233508654407", // Escalation WhatsApp
     cellPhone: "+233270000004",
     email: "info@devtracoplus.com",
     address: "No. 8B, Sir Arku Korsah Road, Airport Residential Area, Accra, Ghana",
